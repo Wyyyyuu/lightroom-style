@@ -18,7 +18,7 @@ class ReleaseTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.manifest = self.root / 'release-manifest.json'
         self.entries = json.loads((ROOT / 'release-manifest.json').read_text(encoding='utf-8'))['files']
         for entry in self.entries:

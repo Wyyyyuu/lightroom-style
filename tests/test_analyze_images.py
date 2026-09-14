@@ -19,7 +19,7 @@ SPEC.loader.exec_module(analysis)
 class AnalysisTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
-        self.root = Path(self.directory.name)
+        self.root = Path(self.directory.name).resolve()
 
     def tearDown(self):
         self.directory.cleanup()
