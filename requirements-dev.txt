@@ -1,0 +1,3 @@
+-r photo-style-match/scripts/requirements.txt
+lupa>=2.8,<3
+PyYAML>=6,<7

@@ -1,0 +1,23 @@
+.validation-deps/
+__pycache__/
+*.pyc
+.test-artifacts/
+.plot-deps/
+.venv/
+venv/
+photo-sessions/
+validation-output/
+photo-style-match-workspace/
+private-notes/
+dist/
+experiments/
+*.log
+*.bak
+.DS_Store
+Thumbs.db
+
+# Local authoring history and evaluation inputs; not public runtime documentation
+/VALIDATION.md
+/docs/DEVELOPMENT.md
+/docs/EVALUATION.md
+/photo-style-match/evals/

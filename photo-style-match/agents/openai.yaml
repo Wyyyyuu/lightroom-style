@@ -1,0 +1,4 @@
+interface:
+  display_name: "Photo Style Match"
+  short_description: "Match reference colors through native Lightroom edits"
+  default_prompt: "Use $photo-style-match to analyze my reference photos and grade the target in local Lightroom, preserving the original and verifying the native render without generative editing."
