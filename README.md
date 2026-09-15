@@ -150,6 +150,12 @@ Lightroom 插件本身不联网，图像统计在本地运行。AI 宿主如何�
 **桥接文件存在哪里？**  
 默认目录是 `%APPDATA%\Adobe\Lightroom\PhotoStyleMatchBridge`。受沙箱限制的宿主需要获得这个目录的访问权限；实际安装使用其他位置时，通过 `--state-dir` 指定已核实的目录。
 
+## 工具架构
+
+`SKILL.md` 的 YAML 元数据在顶层声明 `allowed-tools`，`metadata.tool-catalog` 指向独立的 [tools.yaml](photo-style-match/tools.yaml)。工具名、脚本入口、用途及可选桌面能力集中在这份清单中，skill 正文保留调色流程。修改工具清单后，发布检查会验证 frontmatter 是否同步、脚本和指南是否完整打包。
+
+调用关系：**agent → 宿主工具 → Python 客户端 → Lightroom 插件 → 原生参数与渲染**。工具清单不会注册 MCP 服务或自动授予权限；首次安装/加载仍按桥接指南执行。宿主差异和维护方法见[工具集成指南](photo-style-match/references/tools.zh-CN.md)。
+
 ## 参考指南
 
 以下指南均提供独立的中英文版本，可在文档顶部切换。`SKILL.md` 与默认模型指引保持英文；中文指南供阅读和查阅，不要求模型重复加载两种语言。
@@ -160,6 +166,7 @@ Lightroom 插件本身不联网，图像统计在本地运行。AI 宿主如何�
 | SDK 桥接与参数操作 | [中文](photo-style-match/references/bridge.zh-CN.md) | [English](photo-style-match/references/bridge.md) |
 | 色调曲线 | [中文](photo-style-match/references/curves.zh-CN.md) | [English](photo-style-match/references/curves.md) |
 | Lightroom 应用工作流 | [中文](photo-style-match/references/lightroom.zh-CN.md) | [English](photo-style-match/references/lightroom.md) |
+| 工具清单与宿主集成 | [中文](photo-style-match/references/tools.zh-CN.md) | [English](photo-style-match/references/tools.md) |
 
 ## 开发与贡献
 
@@ -175,6 +182,7 @@ python tools/build_release.py
 | 路径 | 用途 |
 | --- | --- |
 | `photo-style-match/` | 可独立安装的 skill，包含说明、参考文档、客户端、分析脚本、插件和 MIT 许可证 |
+| `photo-style-match/tools.yaml` | 工具清单；与 frontmatter 的允许工具声明一起校验 |
 | `lightroom-bridge/` | 桥接开发源码及按需运行的实机验收程序 |
 | `tests/` | 图像分析与模拟 SDK 测试 |
 | `tools/` | 发布检查与打包 |

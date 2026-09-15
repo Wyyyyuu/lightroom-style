@@ -45,6 +45,29 @@ class ReleaseTests(unittest.TestCase):
         with patch.multiple(builder, ROOT=clean, MANIFEST=clean / 'release-manifest.json'):
             self.assertEqual(builder.checked_files(), sorted(self.entries))
 
+    def test_tool_declaration_drift_is_rejected(self):
+        skill = self.root / 'photo-style-match/SKILL.md'
+        text = skill.read_text(encoding='utf-8')
+        text = text.replace('allowed-tools:', 'allowed-tools: unexpected_tool ', 1)
+        skill.write_text(text, encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'allowed-tools must match'):
+            builder.checked_files()
+
+    def test_unpackaged_tool_entrypoint_is_rejected(self):
+        catalog = self.root / 'photo-style-match/tools.yaml'
+        text = catalog.read_text(encoding='utf-8').replace(
+            'scripts/setup_lightroom.py', 'scripts/missing_helper.py')
+        catalog.write_text(text, encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'entrypoint is unsafe or not packaged'):
+            builder.checked_files()
+
+    def test_duplicate_tool_names_are_rejected(self):
+        catalog = self.root / 'photo-style-match/tools.yaml'
+        text = catalog.read_text(encoding='utf-8').replace('name: write_stdin', 'name: exec_command')
+        catalog.write_text(text, encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'duplicate tool identifier'):
+            builder.checked_files()
+
     def test_standalone_license_is_required(self):
         self.save_manifest([entry for entry in self.entries if entry != 'photo-style-match/LICENSE'])
         with self.assertRaisesRegex(ValueError, 'licenses must be packaged'):

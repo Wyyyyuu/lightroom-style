@@ -1,0 +1,36 @@
+# Project tool catalog; read by the agent and checked by tools/build_release.py.
+# This is not an MCP server configuration or a runtime permission grant.
+schema_version: 1
+host: codex
+host_tools:
+  - name: exec_command
+    purpose: Run local Python helpers and read task files through the host shell.
+  - name: write_stdin
+    purpose: Poll or interact with a shell session returned by exec_command.
+  - name: apply_patch
+    purpose: Write task notes and structured configuration files.
+  - name: view_image
+    purpose: Inspect reference images and Lightroom-rendered exports.
+cli_helpers:
+  - id: setup
+    entrypoint: scripts/setup_lightroom.py
+    purpose: Install missing bundled plugin files on Windows; never claim UI loading.
+    guide: references/bridge.md
+  - id: probe
+    entrypoint: scripts/lightroom_probe.py
+    purpose: Request fresh read-only Lightroom diagnostics.
+    guide: references/bridge.md
+  - id: lightroom
+    entrypoint: scripts/lightroom_client.py
+    purpose: Import, read, copy, apply, curve, export, and query request status.
+    guide: references/bridge.md
+  - id: analyze
+    entrypoint: scripts/analyze_images.py
+    purpose: Measure explicitly supplied images without modifying pixels.
+    guide: references/analysis.md
+optional_capabilities:
+  - id: desktop_control
+    purpose: Load or enable the plugin and operate unsupported native controls.
+    requirement: A host-provided tool with verified readable native Lightroom UI.
+    binding: Discover the actual tool name; no universal desktop tool is registered here.
+    fallback: Ask for the specific required UI action, then verify the fresh SDK response.

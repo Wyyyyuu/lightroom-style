@@ -28,6 +28,48 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def check_tool_catalog(entries: list[str], metadata: dict) -> None:
+    """Check declaration consistency; this does not grant runtime permissions."""
+    catalog_entry = 'photo-style-match/tools.yaml'
+    if catalog_entry not in entries:
+        raise ValueError('Tool catalog must be packaged')
+    extra = metadata.get('metadata')
+    if not isinstance(extra, dict) or extra.get('tool-catalog') != 'tools.yaml':
+        raise ValueError('metadata.tool-catalog must point to tools.yaml')
+    catalog = yaml.safe_load((ROOT / catalog_entry).read_text(encoding='utf-8'))
+    if not isinstance(catalog, dict) or catalog.get('schema_version') != 1 or catalog.get('host') != 'codex':
+        raise ValueError('Unsupported tool catalog schema or host')
+    names = []
+    for section, key in [('host_tools', 'name'), ('cli_helpers', 'id'), ('optional_capabilities', 'id')]:
+        rows = catalog.get(section)
+        if not isinstance(rows, list) or not rows:
+            raise ValueError(f'Tool catalog needs a nonempty {section} list')
+        seen = set()
+        for row in rows:
+            if not isinstance(row, dict):
+                raise ValueError(f'Invalid tool catalog row in {section}')
+            ident = row.get(key)
+            if not isinstance(ident, str) or not ident or any(c.isspace() for c in ident) or ident in seen:
+                raise ValueError(f'Invalid or duplicate tool identifier in {section}')
+            seen.add(ident)
+            if not isinstance(row.get('purpose'), str) or not row['purpose'].strip():
+                raise ValueError(f'Tool purpose is required: {ident}')
+            if section == 'host_tools':
+                names.append(ident)
+            if section == 'cli_helpers':
+                for field, folder, suffix in [('entrypoint', 'scripts', '.py'), ('guide', 'references', '.md')]:
+                    value = row.get(field)
+                    if not isinstance(value, str):
+                        raise ValueError(f'Tool {field} is required: {ident}')
+                    path = PurePosixPath(value)
+                    if (len(path.parts) != 2 or path.parts[0] != folder or path.suffix != suffix
+                            or '\\' in value or f'photo-style-match/{value}' not in entries):
+                        raise ValueError(f'Tool {field} is unsafe or not packaged: {value}')
+    declared = metadata.get('allowed-tools')
+    if not isinstance(declared, str) or declared.split() != names:
+        raise ValueError('allowed-tools must match tools.yaml host_tools in order')
+
+
 def checked_files() -> list[str]:
     entries = json.loads(MANIFEST.read_text(encoding='utf-8'))['files']
     if not entries or len(entries) != len(set(entries)):
@@ -79,6 +121,7 @@ def checked_files() -> list[str]:
         raise ValueError('Repository and standalone skill license mismatch')
     if len(skill_text.splitlines()) >= 500:
         raise ValueError('Keep the entrypoint under 500 lines; move detail to references')
+    check_tool_catalog(entries, metadata)
     interface = yaml.safe_load((ROOT / 'photo-style-match/agents/openai.yaml').read_text(encoding='utf-8'))['interface']
     if not 25 <= len(interface['short_description']) <= 64:
         raise ValueError('short_description must have 25–64 characters')

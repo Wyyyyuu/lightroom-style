@@ -4,6 +4,8 @@ English · [简体中文](bridge.zh-CN.md)
 
 Use `scripts/lightroom_probe.py` for a fresh connection check and `scripts/lightroom_client.py` for explicit photo commands. Python exchanges requests and receipts; Lightroom performs catalog operations, develop edits, and rendering. Writes are restricted to verified `PhotoStyle-` virtual copies.
 
+Tool names and CLI entry points are maintained in [tools.yaml](../tools.yaml); see [tool integration](tools.md) when adapting the host.
+
 ## Install and connect
 
 ### Automatic first-use setup

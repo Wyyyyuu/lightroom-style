@@ -150,6 +150,12 @@ The Lightroom plugin does not make network requests, and measurements run locall
 **Where does the bridge store its files?**  
 By default, `%APPDATA%\Adobe\Lightroom\PhotoStyleMatchBridge`. A sandboxed host needs access to this directory. Use `--state-dir` when your verified installation uses another location.
 
+## Tool architecture
+
+The YAML frontmatter of `SKILL.md` declares top-level `allowed-tools`, while `metadata.tool-catalog` points to [tools.yaml](photo-style-match/tools.yaml). The catalog centralizes host tool names, script entry points, purpose, and optional desktop capability; the skill body retains the grading workflow. Release checks verify that frontmatter stays in sync and every helper and guide is packaged.
+
+Execution path: **agent → host tool → Python client → Lightroom plugin → native settings and render**. The catalog does not register an MCP service or grant permissions. First-use installation/loading still follows the bridge guide. See [tool integration](photo-style-match/references/tools.md) for host differences and maintenance.
+
 ## Reference guides
 
 Each guide has separate English and Simplified Chinese editions with a language switch at the top. `SKILL.md` and the default model instructions remain in English; the Chinese guides are reading alternatives, not additional required model context.
@@ -160,6 +166,7 @@ Each guide has separate English and Simplified Chinese editions with a language 
 | SDK bridge and parameter operations | [English](photo-style-match/references/bridge.md) | [中文](photo-style-match/references/bridge.zh-CN.md) |
 | Tone curves | [English](photo-style-match/references/curves.md) | [中文](photo-style-match/references/curves.zh-CN.md) |
 | Lightroom application workflow | [English](photo-style-match/references/lightroom.md) | [中文](photo-style-match/references/lightroom.zh-CN.md) |
+| Tool catalog and host integration | [English](photo-style-match/references/tools.md) | [中文](photo-style-match/references/tools.zh-CN.md) |
 
 ## Development
 
@@ -175,6 +182,7 @@ The builder creates a fresh `dist/release-<timestamp>/` containing a clean repos
 | Path | Purpose |
 | --- | --- |
 | `photo-style-match/` | Self-contained installable skill: instructions, references, clients, analyzer, plugin, and MIT license |
+| `photo-style-match/tools.yaml` | Tool catalog validated against the frontmatter tool declaration |
 | `lightroom-bridge/` | Bridge development source and the opt-in native acceptance driver |
 | `tests/` | Image analysis and simulated SDK tests |
 | `tools/` | Release validation and packaging |

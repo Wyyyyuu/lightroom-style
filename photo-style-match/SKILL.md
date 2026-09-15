@@ -2,6 +2,9 @@
 name: photo-style-match
 description: Match reference photos' color and tone in local Lightroom Classic. Use for reference-based grading, adapting previously graded photos, or consistent photo series. Preserves originals and uses native edits, never image generation.
 license: MIT
+allowed-tools: exec_command write_stdin apply_patch view_image
+metadata:
+  tool-catalog: tools.yaml
 ---
 
 # Photo Style Match
@@ -14,19 +17,7 @@ Requires Lightroom Classic, Python 3.11+, and local file access. Set up the bund
 
 ## Tools
 
-The host supplies shell, file, image, and optional UI tools. Bundled Python scripts are CLI helpers invoked through the shell, not separately registered MCP tools.
-
-| Capability | Tool or entry point |
-| --- | --- |
-| Run Python and read/write task files | Host shell/file tools; Codex: `exec_command` and `apply_patch` |
-| Inspect references and native exports | Host image viewer; Codex: `view_image` |
-| Install missing plugin files on Windows | `python scripts/setup_lightroom.py` |
-| Check the Lightroom connection | `python scripts/lightroom_probe.py --timeout 15` |
-| Import, read, copy, apply, curve, export, reconcile | `python scripts/lightroom_client.py ACTION ...` |
-| Measure images without editing | `python scripts/analyze_images.py --references REF1 REF2 --targets BEFORE --output NEW_REPORT.json` |
-| Optional desktop fallback | An available computer-use tool with readable UI state; follow its current instructions |
-
-Resolve scripts relative to this skill directory and quote actual paths. Tool names depend on the host; this list does not grant permissions or make unavailable tools callable.
+Read [tools.yaml](tools.yaml) for host tool names and bundled CLI entry points. Invoke helpers through the host shell with paths resolved from this skill directory. Use [tool integration](references/tools.md) for host adaptation or optional desktop control. The catalog and `allowed-tools` do not register tools or override host permissions.
 
 ## Boundaries
 

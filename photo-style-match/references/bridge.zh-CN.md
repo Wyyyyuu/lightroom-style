@@ -4,6 +4,8 @@
 
 使用 `scripts/lightroom_probe.py` 获取新的连接检查结果，用 `scripts/lightroom_client.py` 对明确的照片执行命令。Python 负责交换请求与回执；Lightroom 负责目录操作、修改照片与渲染。写入仅限经过核验的 `PhotoStyle-` 虚拟副本。
 
+工具名与 CLI 入口统一维护在 [tools.yaml](../tools.yaml)；适配宿主时参阅[工具集成指南](tools.zh-CN.md)。
+
 ## 安装与连接
 
 ### 首次使用时自动准备
