@@ -193,6 +193,6 @@ When contributing, include the environment, reproduction steps, expected behavio
 
 ## Acknowledgments and license
 
-The skill was refined using [Anthropic's skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator); it is a development tool, not a runtime dependency. README organization draws on [Anthropic Skills](https://github.com/anthropics/skills/blob/main/README.md), [Superpowers](https://github.com/obra/superpowers/blob/main/README.md), and the bilingual documentation in [baoyu-skills](https://github.com/JimLiu/baoyu-skills/blob/main/README.zh.md).
+The skill was refined using [Anthropic's skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator); it is a development tool, not a runtime dependency.
 
 This independent project is licensed under the [MIT License](LICENSE). Third-party software and photographs retain their respective licenses and rights.

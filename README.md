@@ -193,6 +193,6 @@ python tools/build_release.py
 
 ## 致谢与许可证
 
-本技能使用 [Anthropic skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator) 整理和改进；它是制作工具，不是修图运行依赖。README 的组织方式参考了 [Anthropic Skills](https://github.com/anthropics/skills/blob/main/README.md)、[Superpowers](https://github.com/obra/superpowers/blob/main/README.md) 和 [baoyu-skills 的双语文档](https://github.com/JimLiu/baoyu-skills/blob/main/README.zh.md)。
+本技能使用 [Anthropic skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator) 整理和改进；它是制作工具，不是修图运行依赖。
 
 本独立项目采用 [MIT 许可证](LICENSE)。第三方软件与照片仍适用各自的许可和权利。
