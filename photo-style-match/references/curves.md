@@ -1,5 +1,7 @@
 # Tone curves
 
+English · [简体中文](curves.zh-CN.md)
+
 Read for S-curves, matte endpoints, or finer tonal separation. Compare a curve-only edit on a copy of the current grade before changing other controls.
 
 ## Choose from the image

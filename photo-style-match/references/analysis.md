@@ -1,5 +1,7 @@
 # Measurement and photographic judgment
 
+English · [简体中文](analysis.zh-CN.md)
+
 ## Input and output contract
 
 `scripts/analyze_images.py` reads rendered 8-bit SDR JPEG, PNG, TIFF, WebP, and BMP images. It does not decode camera RAW, edit images, or control Lightroom. It writes one new JSON report and refuses to overwrite it. Analyze explicitly supplied files, never scan a personal photo library recursively.

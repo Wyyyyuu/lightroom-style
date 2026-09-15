@@ -1,48 +1,48 @@
 # Photo Style Match
 
-**Bring a reference look into Lightroom. Keep the edit in your hands.**
+**把喜欢的色彩，调进自己的照片。每一步，都留在 Lightroom 里。**
 
-English · [简体中文](README.zh-CN.md)
+简体中文 · [English](README.en.md)
 
-Photo Style Match is an agent skill for reference-based photo grading in **local Lightroom Classic**. Give your assistant a few reference photos and a target: it studies their shared tone and color, adjusts a virtual copy through Lightroom's native SDK, and checks the image Lightroom actually renders.
+Photo Style Match 是一个在**本机 Lightroom Classic** 中工作的参考图调色 skill。给助手几张参考图和一张目标照片，它会分析影调与色彩共性，通过 Lightroom 原生 SDK 调整虚拟副本，再检查 Lightroom 实际渲染的画面。
 
-**Originals preserved · Editable Lightroom parameters · Native JPEG output · No generative editing**
+**保留原片 · 参数可继续编辑 · Lightroom 原生导出 · 不使用生成式改图**
 
-> Use $photo-style-match. The first five photos are references; the last is my target. Match their color and tone in Lightroom, keep the original, and export a JPEG.
+> 使用 $photo-style-match，前五张是参考，最后一张是目标。请在 Lightroom 中调出相近的色彩和影调，保留原片，导出一份 JPEG。
 
-[Quick start](#quick-start) · [Examples](#examples) · [How it works](#how-it-works) · [Compatibility](#compatibility) · [FAQ](#faq)
+[快速开始](#快速开始) · [使用示例](#使用示例) · [工作原理](#工作原理) · [兼容性](#兼容性) · [常见问题](#常见问题)
 
-## What you get
+## 你会得到什么
 
-- **A look adapted to your photo.** Compare references for contrast, highlight transitions, key hues, saturation, and warm/cool relationships. Account for your target's lighting and existing edits.
-- **An editable result.** Apply exposure, white balance, HSL, and color grading to an identified virtual copy, with snapshots and parameter readback.
-- **A checked native render.** Review Lightroom's before/after output, refine the settings, and export to a new location.
-- **Evidence you can inspect.** Use histogram, brightness, Lab, and HSV measurements alongside visual judgment, with a local session record for continuing later.
+- **适合这张照片的调色方案。** 从参考中提炼反差、亮部过渡、主要色相、饱和度和冷暖关系，结合目标照片的光线与已有处理进行适配。
+- **可以继续调整的 Lightroom 版本。** 在明确的虚拟副本上修改曝光、白平衡、HSL 和颜色分级，保留快照，并回读实际参数。
+- **经过画面检查的原生成片。** 对照 Lightroom 渲染的前后图，逐轮修正，再导出到新位置。
+- **可以追溯的判断和操作。** 用直方图、亮度、Lab 与 HSV 统计辅助观察，保存本地会话记录，方便后续继续修改。
 
-The workflow suits reference matching, reworking a previously graded JPEG, and establishing a consistent direction across a photo series. Each scene still needs its own exposure, white balance, and visual check.
+适用于模仿参考风格、重新调整已有调色的 JPEG，以及为系列照片建立一致方向。不同场景仍会分别处理曝光、白平衡，并检查实际画面。
 
-## Quick start
+## 快速开始
 
-### Requirements
+### 环境要求
 
-- **Windows and Lightroom Classic.** The native workflow has been tested with Classic 13.0.2.
-- **A local agent host.** Developed with Codex; the assistant needs local file access and permission to run Python. Other hosts require their own integration checks.
-- **Python 3.11+.** Current automated validation uses Python 3.12. Image analysis needs Pillow and NumPy; the bridge clients use the standard library.
+- **Windows 与 Lightroom Classic。** 原生工作流程已在 Classic 13.0.2 上验证。
+- **能够访问本机的智能体宿主。** 本项目使用 Codex 开发；助手需要读取本地文件并运行 Python 的权限。其他宿主需要单独核验集成。
+- **Python 3.11+。** 当前自动化检查使用 Python 3.12。图像分析依赖 Pillow 和 NumPy，桥接客户端只使用标准库。
 
-Download and extract the repository, then open PowerShell in its root directory.
+下载并解压仓库，在仓库根目录打开 PowerShell。
 
-### 1. Prepare the Python environment
+### 1. 准备 Python 环境
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r photo-style-match/scripts/requirements.txt
 ```
 
-Tell your assistant to use this environment's Python interpreter, or use an existing compatible runtime.
+让助手使用这个环境中的 Python 解释器，也可以使用已有的兼容运行时。
 
-### 2. Install the skill
+### 2. 安装 skill
 
-Copy the entire `photo-style-match/` folder into your host's skills directory. For the Codex setup used by this project:
+将完整的 `photo-style-match/` 文件夹放入宿主的技能目录。对于本项目使用的 Codex 配置，可以运行：
 
 ```powershell
 $skillRoot = if ($env:CODEX_HOME) {
@@ -52,101 +52,112 @@ $skillRoot = if ($env:CODEX_HOME) {
 }
 $skillDestination = Join-Path $skillRoot 'photo-style-match'
 if (Test-Path -LiteralPath $skillDestination) {
-    throw 'Back up the existing skill folder before installing this version.'
+    throw '请先备份已有的 skill 目录，再安装这个版本。'
 }
 New-Item -ItemType Directory -Path $skillRoot -Force | Out-Null
 Copy-Item -LiteralPath './photo-style-match' -Destination $skillDestination -Recurse
 ```
 
-Start a new conversation. If the skill is not discovered, restart the host. Skill instructions are in English; the assistant responds in your language.
+安装后开始新对话；如果未发现技能，重启宿主后再试。技能执行说明使用英文，助手仍会跟随你的语言交流。
 
-### 3. Load the Lightroom plugin
+### 3. 加载 Lightroom 插件
 
-1. Copy the complete `photo-style-match/assets/PhotoStyleBridge.lrplugin` folder to a stable location, such as `%APPDATA%\Adobe\Lightroom\Modules\PhotoStyleBridge.lrplugin`. Back up any existing version first.
-2. In Lightroom Classic, open **File → Plug-in Manager → Add**, and select that folder.
-3. Click **运行只读连接检查** in the plugin panel, then **Done** to close the manager. The button means “Run read-only connection check”; its label is currently Chinese.
+1. 将完整的 `photo-style-match/assets/PhotoStyleBridge.lrplugin` 文件夹复制到稳定位置，例如 `%APPDATA%\Adobe\Lightroom\Modules\PhotoStyleBridge.lrplugin`。已有版本请先备份。
+2. 在 Lightroom Classic 中打开 **文件 → 增效工具管理器 → 添加**，选择这个文件夹。
+3. 点击插件面板里的 **运行只读连接检查**，再点击 **完成** 关闭管理器。当前插件按钮为中文标签。
 
-The skill and the Lightroom plugin are two separate installations: the skill guides the assistant, and the plugin gives Lightroom a local command channel.
+skill 和 Lightroom 插件需要分别安装：前者指导助手，后者为 Lightroom 提供本地命令通道。
 
-### 4. Check the connection and try a photo
+### 4. 检查连接，开始第一张照片
 
 ```powershell
 .\.venv\Scripts\python.exe photo-style-match/scripts/lightroom_probe.py --timeout 15
 ```
 
-Look for a fresh receipt with `connected: true`, `command_protocol: 1`, and `capabilities.catalog.ok: true`. Confirm the catalog path is the one you intend to use. This checks the connection; successful editing is established by parameter readback and native render inspection during the task.
+检查新回执中的 `connected: true`、`command_protocol: 1` 和 `capabilities.catalog.ok: true`，并确认目录路径是你要使用的 Lightroom 目录。这一步验证连接；实际调色成功还需要任务中的参数回读与原生渲染检查。
 
-Attach your references and target, then use the example prompt above. One reference works; 3–8 related images usually provide more useful context. Clearly identify which photo should be edited.
+上传参考和目标，使用页面开头的示例即可。一张参考也能工作，3–8 张相关照片通常能提供更充分的线索。请明确哪张是待调照片。
 
-## Examples
+## 使用示例
 
-### Match a reference set
+### 模仿一组参考
 
-> Use $photo-style-match. Photos 1–5 are references and photo 6 is the target. Aim for their soft contrast, pale blues, and natural skin tones. Edit in Lightroom and export a new JPEG.
+> 使用 $photo-style-match，第 1–5 张是参考，第 6 张是目标。希望接近参考的柔和反差、浅蓝色和自然肤色。请在 Lightroom 中处理并导出新的 JPEG。
 
-### Rework an existing grade
+### 重新调整已有调色
 
-> This JPEG already has a strong orange-and-cyan grade. Use the previous references, inspect its histogram and colors, and make the changes needed to fit. Keep the original and the earlier version.
+> 这张 JPEG 已经调过较强的橙青色。请沿用上一组参考，检查直方图和颜色差异，做出适配所需的调整，保留原片和之前的版本。
 
-### Continue from feedback
+### 根据反馈继续修改
 
-> Keep the current look, but the sky is too saturated and the skin is slightly cool. Refine those areas in the existing virtual copy, then check the new render.
+> 保留目前的感觉，但天空饱和度有些高，肤色也稍微偏冷。请在当前虚拟副本上细调这两处，再检查新的渲染结果。
 
-The assistant treats a histogram as supporting evidence. It does not force unrelated images to share a brightness distribution or claim a numerical “style similarity” score.
+助手会将直方图作为辅助证据，不强求不同内容的照片具有相同亮度分布，也不会给出虚构的“风格相似度百分比”。
 
-## How it works
+## 工作原理
 
 ```text
-Reference photos + target
-          ↓
-Visual observations + read-only image measurements
-          ↓
-Target-specific tone and color decisions
-          ↓
-Lightroom virtual copy → native parameter edits
-          ↓
-Independent readback → native render review → export
+参考照片 + 目标照片
+        ↓
+视觉观察 + 只读图像统计
+        ↓
+针对目标确定影调与色彩调整
+        ↓
+Lightroom 虚拟副本 → 原生参数修改
+        ↓
+独立回读 → 原生渲染检查 → 导出
 ```
 
-The agent chooses adjustments; Python measures images and carries commands; the Lightroom plugin applies settings and renders the result. Photo content and composition are preserved. Image generation, content replacement, and external scripted grading are outside this workflow.
+智能体负责判断，Python 负责测量和传递命令，Lightroom 插件负责应用设置并渲染结果。照片内容和构图保持不变；流程不使用图像生成、内容替换或外部脚本调色。
 
-Edits proceed in related parameter groups, with up to three review rounds by default. The result stays in a `PhotoStyle-` virtual copy with rollback snapshots. Unless you request application-only editing, a new high-quality sRGB JPEG can be exported for review. A local `session.md` records the target, copy, settings, checks, and output paths.
+每轮集中调整相关参数，默认最多进行三轮画面检查。结果保存在 `PhotoStyle-` 虚拟副本中，并有快照可回退。除非你明确只要软件内编辑，否则可以导出新的高质量 sRGB JPEG 供查看。本地 `session.md` 记录目标、副本、设置、检查结果和输出路径。
 
-## Compatibility
+## 兼容性
 
-| Component | Current scope |
+| 项目 | 当前范围 |
 | --- | --- |
-| Verified environment | Windows · Lightroom Classic 13.0.2 · plugin 0.2.2.0 |
-| Native editing | Tone, parametric/composite point curves, JPEG white balance, HSL, and color grading on protected virtual copies |
-| Native export | Quality 0.95 JPEG · sRGB · original dimensions · new output directory |
-| Image measurements | Supported rendered 8-bit SDR images; RAW, MPO/multi-frame, HDR, and high-bit-depth sources need a suitable application-rendered preview |
-| Outside the bridge | Individual RGB curve writes, masks, cropping, retouching, sharpening, denoising, profile writes, and arbitrary presets |
-| Needs separate validation | RAW white balance, other Classic versions, macOS, Lightroom cloud, and other agent hosts/applications |
+| 已验证环境 | Windows · Lightroom Classic 13.0.2 · 插件 0.2.2.0 |
+| 原生编辑 | 受保护虚拟副本上的影调、参数曲线与综合点曲线、JPEG 白平衡、HSL 和颜色分级 |
+| 原生导出 | 质量 0.95 的 JPEG · sRGB · 原始尺寸 · 新输出目录 |
+| 图像测量 | 支持已渲染的 8-bit SDR 图片；RAW、MPO/多帧、HDR 和高位深源图需先取得适用的软件渲染预览 |
+| 桥接未提供 | 独立 RGB 通道曲线写入、蒙版、裁切、修复、锐化、降噪、配置文件写入、任意预设 |
+| 需要单独验证 | RAW 白平衡、其他 Classic 版本、macOS、Lightroom 云版、其他智能体宿主或调色软件 |
 
-Native curves support regional S-curves and white RGB composite points for softer endpoints with midtone contrast. Each edit is read back and checked in Lightroom exports; curve shape follows the image, not a fixed preset. See the [curve guide](photo-style-match/references/curves.md).
+已支持参数曲线，以及白色 RGB 综合点曲线：可柔化黑白端点，用中间锚点增强层次。每次调整均回读参数并检查 Lightroom 导出，按照片选择曲线，不套用固定预设。详见 [曲线指南](photo-style-match/references/curves.zh-CN.md)。
 
-Unsupported bridge controls require an actually available desktop control channel. TIFF/HDR and other requested export formats require an appropriate application export workflow.
+桥接尚未提供的控件需要实际可用的桌面控制通道。TIFF/HDR 等输出要求，需要使用软件中适用的导出流程。
 
-**Validation:** Automated tests cover image statistics, a simulated SDK, and release packaging. The native workflow has been tested on the environment listed above. Automated checks do not establish photographic style quality or compatibility with other versions. GitHub Actions is configured; no remote CI result is claimed.
+**验证情况：** 自动化测试覆盖图像统计、模拟 SDK 和发布打包；原生流程已在上表环境中测试。自动化检查不代表调色审美质量，也不保证其他版本兼容。最新自动化检查见 [GitHub Actions](https://github.com/Wyyyyuu/photo-style-match/actions/workflows/test.yml)。
 
-## FAQ
+## 常见问题
 
-**Can it edit a JPEG that has already been graded?**  
-Yes. Existing grading is baked into the pixels even when Lightroom's imported sliders read zero. The skill works from the current appearance on a copy; it cannot recover an ungraded RAW source by resetting sliders.
+**以前调过色的 JPEG，还能继续适配吗？**  
+可以。此前调色已经体现在像素里，即使导入 Lightroom 后滑块为零也依然存在。skill 会在副本上从当前外观继续调整；重置滑块无法恢复未经处理的 RAW 原片。
 
-**The plugin is enabled, but the assistant cannot connect.**  
-Run the plugin panel's read-only check, close the manager, and obtain a new probe receipt. Check the loaded plugin path and protocol. After updating, use **Reload Plug-in** to refresh its metadata. An old diagnostic file is not a live connection. See the [bridge guide](photo-style-match/references/bridge.md).
+**插件显示已启用，为什么助手仍然连不上？**  
+在插件面板运行只读检查，关闭管理器，再获取新的连接回执。核对实际加载路径和协议版本。更新后可用 **重新载入增效工具** 刷新元信息；旧的诊断文件不能证明当前连接。详细步骤见 [桥接指南](photo-style-match/references/bridge.zh-CN.md)。
 
-**A command timed out. Should I retry?**  
-For `outcome_unknown`, query the original request ID with `status --request-id ID`. Do not resend `copy`, `apply`, or `export` until the original outcome and current photo state have been reconciled.
+**命令超时了，要重新执行吗？**  
+遇到 `outcome_unknown`，先用 `status --request-id ID` 查询原请求。在核清原请求结果和照片当前状态前，不要再次发送 `copy`、`apply` 或 `export`。
 
-**Are my photos uploaded?**  
-The Lightroom plugin does not make network requests, and measurements run locally. Your AI host determines how attachments and model requests are processed; local Lightroom execution does not imply offline AI inference. The workflow does not publish photos. Personal images, catalog data, and private receipts are excluded from release packages.
+**照片会上传吗？**  
+Lightroom 插件本身不联网，图像统计在本地运行。AI 宿主如何处理附件和模型请求由宿主决定；本地操作 Lightroom 不代表模型推理离线。流程不会发布照片，发布包也排除了私人图片、目录数据和回执。
 
-**Where does the bridge store its files?**  
-By default, `%APPDATA%\Adobe\Lightroom\PhotoStyleMatchBridge`. A sandboxed host needs access to this directory. Use `--state-dir` when your verified installation uses another location.
+**桥接文件存在哪里？**  
+默认目录是 `%APPDATA%\Adobe\Lightroom\PhotoStyleMatchBridge`。受沙箱限制的宿主需要获得这个目录的访问权限；实际安装使用其他位置时，通过 `--state-dir` 指定已核实的目录。
 
-## Development
+## 参考指南
+
+以下指南均提供独立的中英文版本，可在文档顶部切换。`SKILL.md` 与默认模型指引保持英文；中文指南供阅读和查阅，不要求模型重复加载两种语言。
+
+| 指南 | 简体中文 | English |
+| --- | --- | --- |
+| 图像测量与风格判断 | [中文](photo-style-match/references/analysis.zh-CN.md) | [English](photo-style-match/references/analysis.md) |
+| SDK 桥接与参数操作 | [中文](photo-style-match/references/bridge.zh-CN.md) | [English](photo-style-match/references/bridge.md) |
+| 色调曲线 | [中文](photo-style-match/references/curves.zh-CN.md) | [English](photo-style-match/references/curves.md) |
+| Lightroom 应用工作流 | [中文](photo-style-match/references/lightroom.zh-CN.md) | [English](photo-style-match/references/lightroom.md) |
+
+## 开发与贡献
 
 ```powershell
 python -m pip install -r requirements-dev.txt
@@ -155,21 +166,21 @@ python tools/build_release.py --check
 python tools/build_release.py
 ```
 
-The builder creates a fresh `dist/release-<timestamp>/` containing a clean repository directory, repository ZIP, standalone skill ZIP, and SHA-256 manifest. It checks an explicit file allowlist and consistency between bridge source and bundled copies. Publish from the clean directory after reviewing its contents.
+打包工具会创建新的 `dist/release-<timestamp>/`，包含干净仓库目录、仓库 ZIP、独立 skill ZIP 和 SHA-256 清单。它检查明确的文件清单，以及桥接开发源码与 skill 内发布副本的一致性。检查内容后，从干净目录发布。
 
-| Path | Purpose |
+| 路径 | 用途 |
 | --- | --- |
-| `photo-style-match/` | Self-contained installable skill: instructions, references, clients, analyzer, plugin, and MIT license |
-| `lightroom-bridge/` | Bridge development source and the opt-in native acceptance driver |
-| `tests/` | Image analysis and simulated SDK tests |
-| `tools/` | Release validation and packaging |
+| `photo-style-match/` | 可独立安装的 skill，包含说明、参考文档、客户端、分析脚本、插件和 MIT 许可证 |
+| `lightroom-bridge/` | 桥接开发源码及按需运行的实机验收程序 |
+| `tests/` | 图像分析与模拟 SDK 测试 |
+| `tools/` | 发布检查与打包 |
 
-Routine tests do not launch Lightroom. `lightroom-bridge/validate_native.py` does perform real imports, copies, edits, and exports; use it only for intentional native acceptance. See the [bridge development notes — 中文](lightroom-bridge/CONNECTION.md). Local authoring history, evaluation inputs, and photo sessions are excluded from Git and release archives.
+普通测试不会启动 Lightroom。`lightroom-bridge/validate_native.py` 会实际导入测试图、创建副本、修改参数并导出，仅在明确进行实机验收时运行。详细说明见 [桥接开发说明](lightroom-bridge/CONNECTION.md)。本地制作历史、评估输入和照片会话均排除在 Git 与发布包之外。
 
-When contributing, include the environment, reproduction steps, expected behavior, and relevant checks. Remove personal paths and photo/catalog data from reports. Keep the two README versions consistent.
+提交改进时，请附上环境、复现步骤、预期行为和相关检查结果。报告中移除个人路径、照片与目录数据；文档修改请同步维护中英文 README。
 
-## Acknowledgments and license
+## 致谢与许可证
 
-The skill was refined using [Anthropic's skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator); it is a development tool, not a runtime dependency. README organization draws on [Anthropic Skills](https://github.com/anthropics/skills/blob/main/README.md), [Superpowers](https://github.com/obra/superpowers/blob/main/README.md), and the bilingual documentation in [baoyu-skills](https://github.com/JimLiu/baoyu-skills/blob/main/README.zh.md).
+本技能使用 [Anthropic skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator) 整理和改进；它是制作工具，不是修图运行依赖。README 的组织方式参考了 [Anthropic Skills](https://github.com/anthropics/skills/blob/main/README.md)、[Superpowers](https://github.com/obra/superpowers/blob/main/README.md) 和 [baoyu-skills 的双语文档](https://github.com/JimLiu/baoyu-skills/blob/main/README.zh.md)。
 
-This independent project is licensed under the [MIT License](LICENSE). Third-party software and photographs retain their respective licenses and rights.
+本独立项目采用 [MIT 许可证](LICENSE)。第三方软件与照片仍适用各自的许可和权利。

@@ -1,5 +1,7 @@
 # Lightroom application workflow
 
+English · [简体中文](lightroom.zh-CN.md)
+
 Prefer the verified Classic integration described in [bridge.md](bridge.md). This document covers a desktop fallback and controls outside the bridge. Read the current desktop tool instructions before acting; do not use fixed-coordinate macros.
 
 ## Classic desktop fallback
