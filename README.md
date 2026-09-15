@@ -62,6 +62,10 @@ Copy-Item -LiteralPath './photo-style-match' -Destination $skillDestination -Rec
 
 ### 3. 加载 Lightroom 插件
 
+首次调色时，agent 会先检查连接；缺少插件文件时自动运行 `setup_lightroom.py`，并在有可用桌面控制工具时完成添加、启用和连接验证。没有桌面控制通道时，仍需你完成下面的管理器操作。已有可用连接会直接复用。详见[首次使用流程](photo-style-match/references/bridge.zh-CN.md#首次使用时自动准备)。
+
+也可手动安装：
+
 1. 将完整的 `photo-style-match/assets/PhotoStyleBridge.lrplugin` 文件夹复制到稳定位置，例如 `%APPDATA%\Adobe\Lightroom\Modules\PhotoStyleBridge.lrplugin`。已有版本请先备份。
 2. 在 Lightroom Classic 中打开 **文件 → 增效工具管理器 → 添加**，选择这个文件夹。
 3. 点击插件面板里的 **运行只读连接检查**，再点击 **完成** 关闭管理器。当前插件按钮为中文标签。

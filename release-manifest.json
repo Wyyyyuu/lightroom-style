@@ -41,12 +41,14 @@
     "photo-style-match/scripts/lightroom_client.py",
     "photo-style-match/scripts/lightroom_probe.py",
     "photo-style-match/scripts/requirements.txt",
+    "photo-style-match/scripts/setup_lightroom.py",
     "release-manifest.json",
     "requirements-dev.txt",
     "tests/test_analyze_images.py",
     "tests/test_build_release.py",
     "tests/test_lightroom_bridge.py",
     "tests/test_lightroom_commands.py",
+    "tests/test_setup_lightroom.py",
     "tools/build_release.py"
   ]
 }

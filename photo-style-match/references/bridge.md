@@ -6,6 +6,19 @@ Use `scripts/lightroom_probe.py` for a fresh connection check and `scripts/light
 
 ## Install and connect
 
+### Automatic first-use setup
+
+When a grading request requires this bridge, carry out setup within the task and host permissions:
+
+1. Run the probe first. Reuse a working connection; do not reinstall or reload on every task. A timeout does not prove that files are missing. Inspect errors and the actual loaded plugin path when available.
+2. If files are missing, run `python scripts/setup_lightroom.py`. This Windows helper uses only the bundled assets, installs into the conventional Modules folder, and returns JSON with the exact path. Use `--plugin-dir ABSOLUTE_PATH` for a verified alternative. It needs no third-party Python packages. Exit 0 means files are installed or identical; exit 2 means an existing installation differs and was preserved; exit 1 indicates an installation error. Resolve a differing installation deliberately with the backup procedure below, not by repeatedly running setup. Failed staging files are retained at the reported `.installing` path for diagnosis.
+3. With an available desktop tool and readable UI state, open Lightroom Classic if necessary without terminating a session or upgrading a catalog. In File → Plug-in Manager, add the returned folder only if it is absent, enable it if disabled, or reload only after a deliberate update. Run the read-only connection check and close the manager. Use observed controls, never blind keystrokes or fixed coordinates. Do not modify preferences/catalog databases to force registration.
+4. Run the probe again and require the fresh protocol/catalog checks below. If no usable desktop channel exists, explain that specific limitation and ask the user only to complete the remaining manager action, then continue verification. Do not promise unattended loading in that environment.
+
+Installation is not loading, and loading is not a verified connection. The helper never claims either. The plugin's existing `LrInitPlugin` starts its worker when Lightroom loads it; no new startup service or scheduled task is needed. Installing this skill alone does not execute a setup hook: the agent follows this procedure when first using it.
+
+Registration follows [Adobe's Lightroom Classic plugin installation guide](https://blog.developer.adobe.com/en/publish/2022/07/lightroom-classic-plugin-support-for-the-adobe-exchange-for-creative-cloud).
+
 `assets/PhotoStyleBridge.lrplugin` is a complete plugin folder. On Windows the conventional installation location is `%APPDATA%\Adobe\Lightroom\Modules\PhotoStyleBridge.lrplugin`. Back up an existing installation before replacing it, then add/load it in File → Plug-in Manager. The actual loaded path takes priority over this convention. Do not edit catalog databases or application preference files.
 
 After an update, click the read-only connection check button in the manager (current UI label: `运行只读连接检查`) and close it. Version 0.2.0 supports handing over from an older background task. Plugin metadata changes require Reload Plug-in to refresh the panel version. If no desktop channel works, request only this necessary application action, explaining the limitation.

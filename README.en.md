@@ -62,6 +62,10 @@ Start a new conversation. If the skill is not discovered, restart the host. Skil
 
 ### 3. Load the Lightroom plugin
 
+On first use, the agent checks the connection, runs `setup_lightroom.py` if plugin files are missing, and uses an available desktop tool to add/enable the plugin and verify the connection. Without desktop control, you still need to complete the manager steps below. Working connections are reused. See [first-use setup](photo-style-match/references/bridge.md#automatic-first-use-setup).
+
+For manual installation:
+
 1. Copy the complete `photo-style-match/assets/PhotoStyleBridge.lrplugin` folder to a stable location, such as `%APPDATA%\Adobe\Lightroom\Modules\PhotoStyleBridge.lrplugin`. Back up any existing version first.
 2. In Lightroom Classic, open **File → Plug-in Manager → Add**, and select that folder.
 3. Click **运行只读连接检查** in the plugin panel, then **Done** to close the manager. The button means “Run read-only connection check”; its label is currently Chinese.
