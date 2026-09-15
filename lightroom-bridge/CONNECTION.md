@@ -2,7 +2,7 @@
 
 0.2.2.0 已在本机 Lightroom Classic 13.0.2 验证：指定图像导入、虚拟副本、影调/白平衡/HSL/颜色分级、参数曲线及 RGB 综合点曲线写入、独立回读以及 Lightroom 原生 JPEG 导出。仅在 PhotoStyle- 虚拟副本上写入，原片受保护。不是图像生成或外部脚本调色。
 
-完整操作与恢复说明集中在 [技能桥接流程](../photo-style-match/references/bridge.md)。工作区 bridge_probe.py 对应发布版 scripts/lightroom_probe.py，bridge_client.py 对应 scripts/lightroom_client.py。PhotoStyleBridge.lrplugin 是插件源码；发布时将 Lua 文件复制到技能 assets/PhotoStyleBridge.lrplugin，不打包日志、旧版备份或测试依赖。
+完整操作与恢复说明集中在 [技能桥接流程](../lightroom-style/references/bridge.md)。工作区 bridge_probe.py 对应发布版 scripts/lightroom_probe.py，bridge_client.py 对应 scripts/lightroom_client.py。PhotoStyleBridge.lrplugin 是插件源码；发布时将 Lua 文件复制到技能 assets/PhotoStyleBridge.lrplugin，不打包日志、旧版备份或测试依赖。
 
 Windows 插件安装位置通常为 %APPDATA%\Adobe\Lightroom\Modules\PhotoStyleBridge.lrplugin；状态目录为 %APPDATA%\Adobe\Lightroom\PhotoStyleMatchBridge。管理器按钮“运行只读连接检查”只产生诊断；新版后台收到具体请求后才执行对应操作。菜单同时注册文件与图库入口。
 

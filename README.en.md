@@ -1,14 +1,14 @@
-# Photo Style Match
+# Lightroom Style
 
 **Bring a reference look into Lightroom. Keep the edit in your hands.**
 
 [简体中文](README.md) · English
 
-Photo Style Match is an agent skill for reference-based photo grading in **local Lightroom Classic**. Give your assistant a few reference photos and a target: it studies their shared tone and color, adjusts a virtual copy through Lightroom's native SDK, and checks the image Lightroom actually renders.
+Lightroom Style is an agent skill for reference-based photo grading in **local Lightroom Classic**. Give your assistant a few reference photos and a target: it studies their shared tone and color, adjusts a virtual copy through Lightroom's native SDK, and checks the image Lightroom actually renders.
 
 **Originals preserved · Editable Lightroom parameters · Native JPEG output · No generative editing**
 
-> Use $photo-style-match. The first five photos are references; the last is my target. Match their color and tone in Lightroom, keep the original, and export a JPEG.
+> Use $lightroom-style. The first five photos are references; the last is my target. Match their color and tone in Lightroom, keep the original, and export a JPEG.
 
 [Quick start](#quick-start) · [Examples](#examples) · [How it works](#how-it-works) · [Compatibility](#compatibility) · [FAQ](#faq)
 
@@ -35,14 +35,14 @@ Download and extract the repository, then open PowerShell in its root directory.
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r photo-style-match/scripts/requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r lightroom-style/scripts/requirements.txt
 ```
 
 Tell your assistant to use this environment's Python interpreter, or use an existing compatible runtime.
 
 ### 2. Install the skill
 
-Copy the entire `photo-style-match/` folder into your host's skills directory. For the Codex setup used by this project:
+Copy the entire `lightroom-style/` folder into your host's skills directory. For the Codex setup used by this project:
 
 ```powershell
 $skillRoot = if ($env:CODEX_HOME) {
@@ -50,23 +50,25 @@ $skillRoot = if ($env:CODEX_HOME) {
 } else {
     Join-Path $env:USERPROFILE '.codex\skills'
 }
-$skillDestination = Join-Path $skillRoot 'photo-style-match'
+$skillDestination = Join-Path $skillRoot 'lightroom-style'
 if (Test-Path -LiteralPath $skillDestination) {
     throw 'Back up the existing skill folder before installing this version.'
 }
 New-Item -ItemType Directory -Path $skillRoot -Force | Out-Null
-Copy-Item -LiteralPath './photo-style-match' -Destination $skillDestination -Recurse
+Copy-Item -LiteralPath './lightroom-style' -Destination $skillDestination -Recurse
 ```
 
 Start a new conversation. If the skill is not discovered, restart the host. Skill instructions are in English; the assistant responds in your language.
 
+When upgrading from `photo-style-match`, rename the installed skill folder to `lightroom-style` and update its contents, avoiding duplicate discovery; invoke `$lightroom-style` afterward. The internal Lightroom bridge identifier, `PhotoStyleBridge.lrplugin`, state directory, and `PhotoStyle-` copy prefix remain compatible. Renaming does not require reimporting photos.
+
 ### 3. Load the Lightroom plugin
 
-On first use, the agent checks the connection, runs `setup_lightroom.py` if plugin files are missing, and uses an available desktop tool to add/enable the plugin and verify the connection. Without desktop control, you still need to complete the manager steps below. Working connections are reused. See [first-use setup](photo-style-match/references/bridge.md#automatic-first-use-setup).
+On first use, the agent checks the connection, runs `setup_lightroom.py` if plugin files are missing, and uses an available desktop tool to add/enable the plugin and verify the connection. Without desktop control, you still need to complete the manager steps below. Working connections are reused. See [first-use setup](lightroom-style/references/bridge.md#automatic-first-use-setup).
 
 For manual installation:
 
-1. Copy the complete `photo-style-match/assets/PhotoStyleBridge.lrplugin` folder to a stable location, such as `%APPDATA%\Adobe\Lightroom\Modules\PhotoStyleBridge.lrplugin`. Back up any existing version first.
+1. Copy the complete `lightroom-style/assets/PhotoStyleBridge.lrplugin` folder to a stable location, such as `%APPDATA%\Adobe\Lightroom\Modules\PhotoStyleBridge.lrplugin`. Back up any existing version first.
 2. In Lightroom Classic, open **File → Plug-in Manager → Add**, and select that folder.
 3. Click **运行只读连接检查** in the plugin panel, then **Done** to close the manager. The button means “Run read-only connection check”; its label is currently Chinese.
 
@@ -75,7 +77,7 @@ The skill and the Lightroom plugin are two separate installations: the skill gui
 ### 4. Check the connection and try a photo
 
 ```powershell
-.\.venv\Scripts\python.exe photo-style-match/scripts/lightroom_probe.py --timeout 15
+.\.venv\Scripts\python.exe lightroom-style/scripts/lightroom_probe.py --timeout 15
 ```
 
 Look for a fresh receipt with `connected: true`, `command_protocol: 1`, and `capabilities.catalog.ok: true`. Confirm the catalog path is the one you intend to use. This checks the connection; successful editing is established by parameter readback and native render inspection during the task.
@@ -86,7 +88,7 @@ Attach your references and target, then use the example prompt above. One refere
 
 ### Match a reference set
 
-> Use $photo-style-match. Photos 1–5 are references and photo 6 is the target. Aim for their soft contrast, pale blues, and natural skin tones. Edit in Lightroom and export a new JPEG.
+> Use $lightroom-style. Photos 1–5 are references and photo 6 is the target. Aim for their soft contrast, pale blues, and natural skin tones. Edit in Lightroom and export a new JPEG.
 
 ### Rework an existing grade
 
@@ -127,11 +129,11 @@ Edits proceed in related parameter groups, with up to three review rounds by def
 | Outside the bridge | Individual RGB curve writes, masks, cropping, retouching, sharpening, denoising, profile writes, and arbitrary presets |
 | Needs separate validation | RAW white balance, other Classic versions, macOS, Lightroom cloud, and other agent hosts/applications |
 
-Native curves support regional S-curves and white RGB composite points for softer endpoints with midtone contrast. Each edit is read back and checked in Lightroom exports; curve shape follows the image, not a fixed preset. See the [curve guide](photo-style-match/references/curves.md).
+Native curves support regional S-curves and white RGB composite points for softer endpoints with midtone contrast. Each edit is read back and checked in Lightroom exports; curve shape follows the image, not a fixed preset. See the [curve guide](lightroom-style/references/curves.md).
 
 Unsupported bridge controls require an actually available desktop control channel. TIFF/HDR and other requested export formats require an appropriate application export workflow.
 
-**Validation:** Automated tests cover image statistics, a simulated SDK, and release packaging. The native workflow has been tested on the environment listed above. Automated checks do not establish photographic style quality or compatibility with other versions. See [GitHub Actions](https://github.com/Wyyyyuu/photo-style-match/actions/workflows/test.yml) for the latest automated checks.
+**Validation:** Automated tests cover image statistics, a simulated SDK, and release packaging. The native workflow has been tested on the environment listed above. Automated checks do not establish photographic style quality or compatibility with other versions. See [GitHub Actions](https://github.com/Wyyyyuu/lightroom-style/actions/workflows/test.yml) for the latest automated checks.
 
 ## FAQ
 
@@ -139,7 +141,7 @@ Unsupported bridge controls require an actually available desktop control channe
 Yes. Existing grading is baked into the pixels even when Lightroom's imported sliders read zero. The skill works from the current appearance on a copy; it cannot recover an ungraded RAW source by resetting sliders.
 
 **The plugin is enabled, but the assistant cannot connect.**  
-Run the plugin panel's read-only check, close the manager, and obtain a new probe receipt. Check the loaded plugin path and protocol. After updating, use **Reload Plug-in** to refresh its metadata. An old diagnostic file is not a live connection. See the [bridge guide](photo-style-match/references/bridge.md).
+Run the plugin panel's read-only check, close the manager, and obtain a new probe receipt. Check the loaded plugin path and protocol. After updating, use **Reload Plug-in** to refresh its metadata. An old diagnostic file is not a live connection. See the [bridge guide](lightroom-style/references/bridge.md).
 
 **A command timed out. Should I retry?**  
 For `outcome_unknown`, query the original request ID with `status --request-id ID`. Do not resend `copy`, `apply`, or `export` until the original outcome and current photo state have been reconciled.
@@ -152,9 +154,9 @@ By default, `%APPDATA%\Adobe\Lightroom\PhotoStyleMatchBridge`. A sandboxed host 
 
 ## Tool architecture
 
-The YAML frontmatter of `SKILL.md` declares top-level `allowed-tools`, while `metadata.tool-catalog` points to [tools.yaml](photo-style-match/tools.yaml). The catalog centralizes host tool names, script entry points, purpose, and optional desktop capability; the skill body retains the grading workflow. Release checks verify that frontmatter stays in sync and every helper and guide is packaged.
+The YAML frontmatter of `SKILL.md` declares top-level `allowed-tools`, while `metadata.tool-catalog` points to [tools.yaml](lightroom-style/tools.yaml). The catalog centralizes host tool names, script entry points, purpose, and optional desktop capability; the skill body retains the grading workflow. Release checks verify that frontmatter stays in sync and every helper and guide is packaged.
 
-Execution path: **agent → host tool → Python client → Lightroom plugin → native settings and render**. The catalog does not register an MCP service or grant permissions. First-use installation/loading still follows the bridge guide. See [tool integration](photo-style-match/references/tools.md) for host differences and maintenance.
+Execution path: **agent → host tool → Python client → Lightroom plugin → native settings and render**. The catalog does not register an MCP service or grant permissions. First-use installation/loading still follows the bridge guide. See [tool integration](lightroom-style/references/tools.md) for host differences and maintenance.
 
 ## Reference guides
 
@@ -162,11 +164,11 @@ Each guide has separate English and Simplified Chinese editions with a language 
 
 | Guide | English | 简体中文 |
 | --- | --- | --- |
-| Measurement and photographic judgment | [English](photo-style-match/references/analysis.md) | [中文](photo-style-match/references/analysis.zh-CN.md) |
-| SDK bridge and parameter operations | [English](photo-style-match/references/bridge.md) | [中文](photo-style-match/references/bridge.zh-CN.md) |
-| Tone curves | [English](photo-style-match/references/curves.md) | [中文](photo-style-match/references/curves.zh-CN.md) |
-| Lightroom application workflow | [English](photo-style-match/references/lightroom.md) | [中文](photo-style-match/references/lightroom.zh-CN.md) |
-| Tool catalog and host integration | [English](photo-style-match/references/tools.md) | [中文](photo-style-match/references/tools.zh-CN.md) |
+| Measurement and photographic judgment | [English](lightroom-style/references/analysis.md) | [中文](lightroom-style/references/analysis.zh-CN.md) |
+| SDK bridge and parameter operations | [English](lightroom-style/references/bridge.md) | [中文](lightroom-style/references/bridge.zh-CN.md) |
+| Tone curves | [English](lightroom-style/references/curves.md) | [中文](lightroom-style/references/curves.zh-CN.md) |
+| Lightroom application workflow | [English](lightroom-style/references/lightroom.md) | [中文](lightroom-style/references/lightroom.zh-CN.md) |
+| Tool catalog and host integration | [English](lightroom-style/references/tools.md) | [中文](lightroom-style/references/tools.zh-CN.md) |
 
 ## Development
 
@@ -181,8 +183,8 @@ The builder creates a fresh `dist/release-<timestamp>/` containing a clean repos
 
 | Path | Purpose |
 | --- | --- |
-| `photo-style-match/` | Self-contained installable skill: instructions, references, clients, analyzer, plugin, and MIT license |
-| `photo-style-match/tools.yaml` | Tool catalog validated against the frontmatter tool declaration |
+| `lightroom-style/` | Self-contained installable skill: instructions, references, clients, analyzer, plugin, and MIT license |
+| `lightroom-style/tools.yaml` | Tool catalog validated against the frontmatter tool declaration |
 | `lightroom-bridge/` | Bridge development source and the opt-in native acceptance driver |
 | `tests/` | Image analysis and simulated SDK tests |
 | `tools/` | Release validation and packaging |

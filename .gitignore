@@ -8,6 +8,7 @@ venv/
 photo-sessions/
 validation-output/
 photo-style-match-workspace/
+lightroom-style-workspace/
 private-notes/
 dist/
 experiments/
@@ -21,3 +22,4 @@ Thumbs.db
 /docs/DEVELOPMENT.md
 /docs/EVALUATION.md
 /photo-style-match/evals/
+/lightroom-style/evals/

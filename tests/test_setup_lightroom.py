@@ -4,7 +4,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location('setup_lightroom', ROOT / 'photo-style-match/scripts/setup_lightroom.py')
+spec = importlib.util.spec_from_file_location('setup_lightroom', ROOT / 'lightroom-style/scripts/setup_lightroom.py')
 setup = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(setup)
 

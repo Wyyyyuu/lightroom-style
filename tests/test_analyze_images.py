@@ -10,7 +10,7 @@ import numpy as np
 from PIL import Image, ImageCms, PngImagePlugin
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "photo-style-match" / "scripts" / "analyze_images.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "lightroom-style" / "scripts" / "analyze_images.py"
 SPEC = importlib.util.spec_from_file_location("analysis", SCRIPT)
 analysis = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(analysis)

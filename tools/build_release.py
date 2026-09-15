@@ -16,11 +16,11 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / 'release-manifest.json'
 FORBIDDEN_PARTS = {
     '.git', '.codex', '.agents', '__pycache__', 'photo-sessions', 'validation-output',
-    '.validation-deps', '.plot-deps', 'private-notes', 'photo-style-match-workspace',
+    '.validation-deps', '.plot-deps', 'private-notes', 'photo-style-match-workspace', 'lightroom-style-workspace',
     'dist', '.venv', 'venv', '.test-artifacts', 'experiments', 'evals',
 }
 PRIVATE_DOCUMENTS = {'VALIDATION.md', 'docs/DEVELOPMENT.md', 'docs/EVALUATION.md'}
-LICENSE_FILES = {'LICENSE', 'photo-style-match/LICENSE'}
+LICENSE_FILES = {'LICENSE', 'lightroom-style/LICENSE'}
 EXTENSIONS = {'.md', '.py', '.lua', '.json', '.yaml', '.yml', '.txt'}
 
 
@@ -30,7 +30,7 @@ def digest(path: Path) -> str:
 
 def check_tool_catalog(entries: list[str], metadata: dict) -> None:
     """Check declaration consistency; this does not grant runtime permissions."""
-    catalog_entry = 'photo-style-match/tools.yaml'
+    catalog_entry = 'lightroom-style/tools.yaml'
     if catalog_entry not in entries:
         raise ValueError('Tool catalog must be packaged')
     extra = metadata.get('metadata')
@@ -63,7 +63,7 @@ def check_tool_catalog(entries: list[str], metadata: dict) -> None:
                         raise ValueError(f'Tool {field} is required: {ident}')
                     path = PurePosixPath(value)
                     if (len(path.parts) != 2 or path.parts[0] != folder or path.suffix != suffix
-                            or '\\' in value or f'photo-style-match/{value}' not in entries):
+                            or '\\' in value or f'lightroom-style/{value}' not in entries):
                         raise ValueError(f'Tool {field} is unsafe or not packaged: {value}')
     declared = metadata.get('allowed-tools')
     if not isinstance(declared, str) or declared.split() != names:
@@ -109,29 +109,29 @@ def checked_files() -> list[str]:
                 if rel not in entries:
                     raise ValueError(f'Document link not packaged: {entry}: {link}')
 
-    skill_text = (ROOT / 'photo-style-match/SKILL.md').read_text(encoding='utf-8')
+    skill_text = (ROOT / 'lightroom-style/SKILL.md').read_text(encoding='utf-8')
     if not skill_text.startswith('---\n'):
         raise ValueError('SKILL.md needs YAML frontmatter at the beginning')
     metadata = yaml.safe_load(skill_text.split('---', 2)[1])
-    if metadata.get('name') != 'photo-style-match' or not metadata.get('description'):
+    if metadata.get('name') != 'lightroom-style' or not metadata.get('description'):
         raise ValueError('Invalid skill name/description')
     if metadata.get('license') != 'MIT':
         raise ValueError('The skill must declare the MIT license')
-    if digest(ROOT / 'LICENSE') != digest(ROOT / 'photo-style-match/LICENSE'):
+    if digest(ROOT / 'LICENSE') != digest(ROOT / 'lightroom-style/LICENSE'):
         raise ValueError('Repository and standalone skill license mismatch')
     if len(skill_text.splitlines()) >= 500:
         raise ValueError('Keep the entrypoint under 500 lines; move detail to references')
     check_tool_catalog(entries, metadata)
-    interface = yaml.safe_load((ROOT / 'photo-style-match/agents/openai.yaml').read_text(encoding='utf-8'))['interface']
+    interface = yaml.safe_load((ROOT / 'lightroom-style/agents/openai.yaml').read_text(encoding='utf-8'))['interface']
     if not 25 <= len(interface['short_description']) <= 64:
         raise ValueError('short_description must have 25–64 characters')
-    if '$photo-style-match' not in interface['default_prompt']:
+    if '$lightroom-style' not in interface['default_prompt']:
         raise ValueError('default_prompt must explicitly invoke the skill')
     pairs = [
-        ('lightroom-bridge/bridge_client.py', 'photo-style-match/scripts/lightroom_client.py'),
-        ('lightroom-bridge/bridge_probe.py', 'photo-style-match/scripts/lightroom_probe.py'),
+        ('lightroom-bridge/bridge_client.py', 'lightroom-style/scripts/lightroom_client.py'),
+        ('lightroom-bridge/bridge_probe.py', 'lightroom-style/scripts/lightroom_probe.py'),
     ]
-    pairs.extend((entry, entry.replace('lightroom-bridge/', 'photo-style-match/assets/', 1))
+    pairs.extend((entry, entry.replace('lightroom-bridge/', 'lightroom-style/assets/', 1))
                  for entry in entries if entry.startswith('lightroom-bridge/PhotoStyleBridge.lrplugin/'))
     for source, packaged in pairs:
         if packaged not in entries or digest(ROOT / source) != digest(ROOT / packaged):
@@ -153,7 +153,7 @@ def build(entries: list[str]) -> Path:
     # Exclusive creation: no recursive deletion or replacement of previous releases.
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
     output = ROOT / 'dist' / f'release-{stamp}'
-    repository = output / 'photo-style-match-repository'
+    repository = output / 'lightroom-style-repository'
     repository.mkdir(parents=True, exist_ok=False)
     for entry in entries:
         destination = repository / entry
@@ -161,13 +161,13 @@ def build(entries: list[str]) -> Path:
         shutil.copy2(ROOT / entry, destination)
         if digest(destination) != digest(ROOT / entry):
             raise ValueError(f'Copy hash mismatch: {entry}')
-    write_zip(repository, entries, output / 'photo-style-match-repository.zip', 'photo-style-match-repository')
-    skill_entries = [entry.removeprefix('photo-style-match/') for entry in entries
-                     if entry.startswith('photo-style-match/')]
-    write_zip(repository / 'photo-style-match', skill_entries,
-              output / 'photo-style-match-skill.zip', 'photo-style-match')
+    write_zip(repository, entries, output / 'lightroom-style-repository.zip', 'lightroom-style-repository')
+    skill_entries = [entry.removeprefix('lightroom-style/') for entry in entries
+                     if entry.startswith('lightroom-style/')]
+    write_zip(repository / 'lightroom-style', skill_entries,
+              output / 'lightroom-style-skill.zip', 'lightroom-style')
     hashes = {entry: digest(repository / entry) for entry in entries}
-    for filename in ('photo-style-match-repository.zip', 'photo-style-match-skill.zip'):
+    for filename in ('lightroom-style-repository.zip', 'lightroom-style-skill.zip'):
         hashes[filename] = digest(output / filename)
     (output / 'SHA256SUMS.json').write_text(json.dumps(hashes, indent=2) + '\n', encoding='utf-8')
     return output

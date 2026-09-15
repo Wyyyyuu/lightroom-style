@@ -34,19 +34,19 @@ class ReleaseTests(unittest.TestCase):
 
     def test_both_archives_are_self_contained_and_licensed(self):
         output = builder.build(builder.checked_files())
-        for filename, prefix in [('photo-style-match-repository.zip', 'photo-style-match-repository'),
-                                 ('photo-style-match-skill.zip', 'photo-style-match')]:
+        for filename, prefix in [('lightroom-style-repository.zip', 'lightroom-style-repository'),
+                                 ('lightroom-style-skill.zip', 'lightroom-style')]:
             with ZipFile(output / filename) as archive:
                 self.assertIsNone(archive.testzip())
                 self.assertEqual(archive.read(prefix + '/LICENSE'), (ROOT / 'LICENSE').read_bytes())
                 self.assertFalse(any('/evals/' in name or '/private-notes/' in name or name.endswith('/VALIDATION.md')
                                      for name in archive.namelist()))
-        clean = output / 'photo-style-match-repository'
+        clean = output / 'lightroom-style-repository'
         with patch.multiple(builder, ROOT=clean, MANIFEST=clean / 'release-manifest.json'):
             self.assertEqual(builder.checked_files(), sorted(self.entries))
 
     def test_tool_declaration_drift_is_rejected(self):
-        skill = self.root / 'photo-style-match/SKILL.md'
+        skill = self.root / 'lightroom-style/SKILL.md'
         text = skill.read_text(encoding='utf-8')
         text = text.replace('allowed-tools:', 'allowed-tools: unexpected_tool ', 1)
         skill.write_text(text, encoding='utf-8')
@@ -54,7 +54,7 @@ class ReleaseTests(unittest.TestCase):
             builder.checked_files()
 
     def test_unpackaged_tool_entrypoint_is_rejected(self):
-        catalog = self.root / 'photo-style-match/tools.yaml'
+        catalog = self.root / 'lightroom-style/tools.yaml'
         text = catalog.read_text(encoding='utf-8').replace(
             'scripts/setup_lightroom.py', 'scripts/missing_helper.py')
         catalog.write_text(text, encoding='utf-8')
@@ -62,25 +62,25 @@ class ReleaseTests(unittest.TestCase):
             builder.checked_files()
 
     def test_duplicate_tool_names_are_rejected(self):
-        catalog = self.root / 'photo-style-match/tools.yaml'
+        catalog = self.root / 'lightroom-style/tools.yaml'
         text = catalog.read_text(encoding='utf-8').replace('name: write_stdin', 'name: exec_command')
         catalog.write_text(text, encoding='utf-8')
         with self.assertRaisesRegex(ValueError, 'duplicate tool identifier'):
             builder.checked_files()
 
     def test_standalone_license_is_required(self):
-        self.save_manifest([entry for entry in self.entries if entry != 'photo-style-match/LICENSE'])
+        self.save_manifest([entry for entry in self.entries if entry != 'lightroom-style/LICENSE'])
         with self.assertRaisesRegex(ValueError, 'licenses must be packaged'):
             builder.checked_files()
 
     def test_license_mismatch_is_rejected(self):
-        (self.root / 'photo-style-match/LICENSE').write_text('Different terms', encoding='utf-8')
+        (self.root / 'lightroom-style/LICENSE').write_text('Different terms', encoding='utf-8')
         with self.assertRaisesRegex(ValueError, 'license mismatch'):
             builder.checked_files()
 
     def test_private_documents_and_experiments_cannot_be_added(self):
         for entry in ['VALIDATION.md', 'docs/DEVELOPMENT.md', 'docs/EVALUATION.md',
-                      'photo-style-match/evals/evals.json', 'experiments/trial/SKILL.md',
+                      'lightroom-style/evals/evals.json', 'experiments/trial/SKILL.md',
                       'photo-sessions/session.md']:
             with self.subTest(entry=entry):
                 path = self.root / entry

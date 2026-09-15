@@ -33,7 +33,7 @@ return {
     sectionsForTopOfDialog = function(factory, properties)
         return {
             {
-                title = 'Photo Style Match 连接诊断 · 0.2.0.1',
+                title = 'Lightroom Style 连接诊断 · 0.2.0.1',
                 factory:push_button {
                     title = '运行只读连接检查',
                     action = function() runDiagnostic(properties) end,

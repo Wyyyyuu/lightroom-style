@@ -1,5 +1,5 @@
 ---
-name: photo-style-match
+name: lightroom-style
 description: Match reference photos' color and tone in local Lightroom Classic. Use for reference-based grading, adapting previously graded photos, or consistent photo series. Preserves originals and uses native edits, never image generation.
 license: MIT
 allowed-tools: exec_command write_stdin apply_patch view_image
@@ -7,7 +7,7 @@ metadata:
   tool-catalog: tools.yaml
 ---
 
-# Photo Style Match
+# Lightroom Style
 
 Analyze references, adapt the look to the target, and verify Lightroom's actual render. Respond in the user's language.
 

@@ -1,14 +1,14 @@
-# Photo Style Match
+# Lightroom Style
 
 **把喜欢的色彩，调进自己的照片。每一步，都留在 Lightroom 里。**
 
 简体中文 · [English](README.en.md)
 
-Photo Style Match 是一个在**本机 Lightroom Classic** 中工作的参考图调色 skill。给助手几张参考图和一张目标照片，它会分析影调与色彩共性，通过 Lightroom 原生 SDK 调整虚拟副本，再检查 Lightroom 实际渲染的画面。
+Lightroom Style 是一个在**本机 Lightroom Classic** 中工作的参考图调色 skill。给助手几张参考图和一张目标照片，它会分析影调与色彩共性，通过 Lightroom 原生 SDK 调整虚拟副本，再检查 Lightroom 实际渲染的画面。
 
 **保留原片 · 参数可继续编辑 · Lightroom 原生导出 · 不使用生成式改图**
 
-> 使用 $photo-style-match，前五张是参考，最后一张是目标。请在 Lightroom 中调出相近的色彩和影调，保留原片，导出一份 JPEG。
+> 使用 $lightroom-style，前五张是参考，最后一张是目标。请在 Lightroom 中调出相近的色彩和影调，保留原片，导出一份 JPEG。
 
 [快速开始](#快速开始) · [使用示例](#使用示例) · [工作原理](#工作原理) · [兼容性](#兼容性) · [常见问题](#常见问题)
 
@@ -35,14 +35,14 @@ Photo Style Match 是一个在**本机 Lightroom Classic** 中工作的参考图
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r photo-style-match/scripts/requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r lightroom-style/scripts/requirements.txt
 ```
 
 让助手使用这个环境中的 Python 解释器，也可以使用已有的兼容运行时。
 
 ### 2. 安装 skill
 
-将完整的 `photo-style-match/` 文件夹放入宿主的技能目录。对于本项目使用的 Codex 配置，可以运行：
+将完整的 `lightroom-style/` 文件夹放入宿主的技能目录。对于本项目使用的 Codex 配置，可以运行：
 
 ```powershell
 $skillRoot = if ($env:CODEX_HOME) {
@@ -50,23 +50,25 @@ $skillRoot = if ($env:CODEX_HOME) {
 } else {
     Join-Path $env:USERPROFILE '.codex\skills'
 }
-$skillDestination = Join-Path $skillRoot 'photo-style-match'
+$skillDestination = Join-Path $skillRoot 'lightroom-style'
 if (Test-Path -LiteralPath $skillDestination) {
     throw '请先备份已有的 skill 目录，再安装这个版本。'
 }
 New-Item -ItemType Directory -Path $skillRoot -Force | Out-Null
-Copy-Item -LiteralPath './photo-style-match' -Destination $skillDestination -Recurse
+Copy-Item -LiteralPath './lightroom-style' -Destination $skillDestination -Recurse
 ```
 
 安装后开始新对话；如果未发现技能，重启宿主后再试。技能执行说明使用英文，助手仍会跟随你的语言交流。
 
+从旧名称 `photo-style-match` 升级时，将已安装的 skill 文件夹改名为 `lightroom-style` 并更新内容，避免两个副本同时被发现；以后使用 `$lightroom-style`。Lightroom 内部桥接标识、`PhotoStyleBridge.lrplugin`、状态目录和 `PhotoStyle-` 副本前缀保持兼容，无需为改名重新导入照片。
+
 ### 3. 加载 Lightroom 插件
 
-首次调色时，agent 会先检查连接；缺少插件文件时自动运行 `setup_lightroom.py`，并在有可用桌面控制工具时完成添加、启用和连接验证。没有桌面控制通道时，仍需你完成下面的管理器操作。已有可用连接会直接复用。详见[首次使用流程](photo-style-match/references/bridge.zh-CN.md#首次使用时自动准备)。
+首次调色时，agent 会先检查连接；缺少插件文件时自动运行 `setup_lightroom.py`，并在有可用桌面控制工具时完成添加、启用和连接验证。没有桌面控制通道时，仍需你完成下面的管理器操作。已有可用连接会直接复用。详见[首次使用流程](lightroom-style/references/bridge.zh-CN.md#首次使用时自动准备)。
 
 也可手动安装：
 
-1. 将完整的 `photo-style-match/assets/PhotoStyleBridge.lrplugin` 文件夹复制到稳定位置，例如 `%APPDATA%\Adobe\Lightroom\Modules\PhotoStyleBridge.lrplugin`。已有版本请先备份。
+1. 将完整的 `lightroom-style/assets/PhotoStyleBridge.lrplugin` 文件夹复制到稳定位置，例如 `%APPDATA%\Adobe\Lightroom\Modules\PhotoStyleBridge.lrplugin`。已有版本请先备份。
 2. 在 Lightroom Classic 中打开 **文件 → 增效工具管理器 → 添加**，选择这个文件夹。
 3. 点击插件面板里的 **运行只读连接检查**，再点击 **完成** 关闭管理器。当前插件按钮为中文标签。
 
@@ -75,7 +77,7 @@ skill 和 Lightroom 插件需要分别安装：前者指导助手，后者为 Li
 ### 4. 检查连接，开始第一张照片
 
 ```powershell
-.\.venv\Scripts\python.exe photo-style-match/scripts/lightroom_probe.py --timeout 15
+.\.venv\Scripts\python.exe lightroom-style/scripts/lightroom_probe.py --timeout 15
 ```
 
 检查新回执中的 `connected: true`、`command_protocol: 1` 和 `capabilities.catalog.ok: true`，并确认目录路径是你要使用的 Lightroom 目录。这一步验证连接；实际调色成功还需要任务中的参数回读与原生渲染检查。
@@ -86,7 +88,7 @@ skill 和 Lightroom 插件需要分别安装：前者指导助手，后者为 Li
 
 ### 模仿一组参考
 
-> 使用 $photo-style-match，第 1–5 张是参考，第 6 张是目标。希望接近参考的柔和反差、浅蓝色和自然肤色。请在 Lightroom 中处理并导出新的 JPEG。
+> 使用 $lightroom-style，第 1–5 张是参考，第 6 张是目标。希望接近参考的柔和反差、浅蓝色和自然肤色。请在 Lightroom 中处理并导出新的 JPEG。
 
 ### 重新调整已有调色
 
@@ -127,11 +129,11 @@ Lightroom 虚拟副本 → 原生参数修改
 | 桥接未提供 | 独立 RGB 通道曲线写入、蒙版、裁切、修复、锐化、降噪、配置文件写入、任意预设 |
 | 需要单独验证 | RAW 白平衡、其他 Classic 版本、macOS、Lightroom 云版、其他智能体宿主或调色软件 |
 
-已支持参数曲线，以及白色 RGB 综合点曲线：可柔化黑白端点，用中间锚点增强层次。每次调整均回读参数并检查 Lightroom 导出，按照片选择曲线，不套用固定预设。详见 [曲线指南](photo-style-match/references/curves.zh-CN.md)。
+已支持参数曲线，以及白色 RGB 综合点曲线：可柔化黑白端点，用中间锚点增强层次。每次调整均回读参数并检查 Lightroom 导出，按照片选择曲线，不套用固定预设。详见 [曲线指南](lightroom-style/references/curves.zh-CN.md)。
 
 桥接尚未提供的控件需要实际可用的桌面控制通道。TIFF/HDR 等输出要求，需要使用软件中适用的导出流程。
 
-**验证情况：** 自动化测试覆盖图像统计、模拟 SDK 和发布打包；原生流程已在上表环境中测试。自动化检查不代表调色审美质量，也不保证其他版本兼容。最新自动化检查见 [GitHub Actions](https://github.com/Wyyyyuu/photo-style-match/actions/workflows/test.yml)。
+**验证情况：** 自动化测试覆盖图像统计、模拟 SDK 和发布打包；原生流程已在上表环境中测试。自动化检查不代表调色审美质量，也不保证其他版本兼容。最新自动化检查见 [GitHub Actions](https://github.com/Wyyyyuu/lightroom-style/actions/workflows/test.yml)。
 
 ## 常见问题
 
@@ -139,7 +141,7 @@ Lightroom 虚拟副本 → 原生参数修改
 可以。此前调色已经体现在像素里，即使导入 Lightroom 后滑块为零也依然存在。skill 会在副本上从当前外观继续调整；重置滑块无法恢复未经处理的 RAW 原片。
 
 **插件显示已启用，为什么助手仍然连不上？**  
-在插件面板运行只读检查，关闭管理器，再获取新的连接回执。核对实际加载路径和协议版本。更新后可用 **重新载入增效工具** 刷新元信息；旧的诊断文件不能证明当前连接。详细步骤见 [桥接指南](photo-style-match/references/bridge.zh-CN.md)。
+在插件面板运行只读检查，关闭管理器，再获取新的连接回执。核对实际加载路径和协议版本。更新后可用 **重新载入增效工具** 刷新元信息；旧的诊断文件不能证明当前连接。详细步骤见 [桥接指南](lightroom-style/references/bridge.zh-CN.md)。
 
 **命令超时了，要重新执行吗？**  
 遇到 `outcome_unknown`，先用 `status --request-id ID` 查询原请求。在核清原请求结果和照片当前状态前，不要再次发送 `copy`、`apply` 或 `export`。
@@ -152,9 +154,9 @@ Lightroom 插件本身不联网，图像统计在本地运行。AI 宿主如何�
 
 ## 工具架构
 
-`SKILL.md` 的 YAML 元数据在顶层声明 `allowed-tools`，`metadata.tool-catalog` 指向独立的 [tools.yaml](photo-style-match/tools.yaml)。工具名、脚本入口、用途及可选桌面能力集中在这份清单中，skill 正文保留调色流程。修改工具清单后，发布检查会验证 frontmatter 是否同步、脚本和指南是否完整打包。
+`SKILL.md` 的 YAML 元数据在顶层声明 `allowed-tools`，`metadata.tool-catalog` 指向独立的 [tools.yaml](lightroom-style/tools.yaml)。工具名、脚本入口、用途及可选桌面能力集中在这份清单中，skill 正文保留调色流程。修改工具清单后，发布检查会验证 frontmatter 是否同步、脚本和指南是否完整打包。
 
-调用关系：**agent → 宿主工具 → Python 客户端 → Lightroom 插件 → 原生参数与渲染**。工具清单不会注册 MCP 服务或自动授予权限；首次安装/加载仍按桥接指南执行。宿主差异和维护方法见[工具集成指南](photo-style-match/references/tools.zh-CN.md)。
+调用关系：**agent → 宿主工具 → Python 客户端 → Lightroom 插件 → 原生参数与渲染**。工具清单不会注册 MCP 服务或自动授予权限；首次安装/加载仍按桥接指南执行。宿主差异和维护方法见[工具集成指南](lightroom-style/references/tools.zh-CN.md)。
 
 ## 参考指南
 
@@ -162,11 +164,11 @@ Lightroom 插件本身不联网，图像统计在本地运行。AI 宿主如何�
 
 | 指南 | 简体中文 | English |
 | --- | --- | --- |
-| 图像测量与风格判断 | [中文](photo-style-match/references/analysis.zh-CN.md) | [English](photo-style-match/references/analysis.md) |
-| SDK 桥接与参数操作 | [中文](photo-style-match/references/bridge.zh-CN.md) | [English](photo-style-match/references/bridge.md) |
-| 色调曲线 | [中文](photo-style-match/references/curves.zh-CN.md) | [English](photo-style-match/references/curves.md) |
-| Lightroom 应用工作流 | [中文](photo-style-match/references/lightroom.zh-CN.md) | [English](photo-style-match/references/lightroom.md) |
-| 工具清单与宿主集成 | [中文](photo-style-match/references/tools.zh-CN.md) | [English](photo-style-match/references/tools.md) |
+| 图像测量与风格判断 | [中文](lightroom-style/references/analysis.zh-CN.md) | [English](lightroom-style/references/analysis.md) |
+| SDK 桥接与参数操作 | [中文](lightroom-style/references/bridge.zh-CN.md) | [English](lightroom-style/references/bridge.md) |
+| 色调曲线 | [中文](lightroom-style/references/curves.zh-CN.md) | [English](lightroom-style/references/curves.md) |
+| Lightroom 应用工作流 | [中文](lightroom-style/references/lightroom.zh-CN.md) | [English](lightroom-style/references/lightroom.md) |
+| 工具清单与宿主集成 | [中文](lightroom-style/references/tools.zh-CN.md) | [English](lightroom-style/references/tools.md) |
 
 ## 开发与贡献
 
@@ -181,8 +183,8 @@ python tools/build_release.py
 
 | 路径 | 用途 |
 | --- | --- |
-| `photo-style-match/` | 可独立安装的 skill，包含说明、参考文档、客户端、分析脚本、插件和 MIT 许可证 |
-| `photo-style-match/tools.yaml` | 工具清单；与 frontmatter 的允许工具声明一起校验 |
+| `lightroom-style/` | 可独立安装的 skill，包含说明、参考文档、客户端、分析脚本、插件和 MIT 许可证 |
+| `lightroom-style/tools.yaml` | 工具清单；与 frontmatter 的允许工具声明一起校验 |
 | `lightroom-bridge/` | 桥接开发源码及按需运行的实机验收程序 |
 | `tests/` | 图像分析与模拟 SDK 测试 |
 | `tools/` | 发布检查与打包 |

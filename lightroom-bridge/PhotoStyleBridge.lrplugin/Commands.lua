@@ -146,7 +146,7 @@ function M.execute(fields,progress)
         local existed = photo ~= nil
         if not photo then
             fresh(fields,catalog)
-            write(catalog,'Photo Style Match: import specified image',function() fresh(fields,catalog); catalog:addPhoto(path) end)
+            write(catalog,'Lightroom Style: import specified image',function() fresh(fields,catalog); catalog:addPhoto(path) end)
             photo = catalog:findPhotoByPath(path)
         end
         if not photo then error('Imported photo could not be retrieved') end
@@ -185,11 +185,11 @@ function M.execute(fields,progress)
         local snapshot='PhotoStyle-before-' .. fields.id
         progress.snapshot_name=snapshot
         fresh(fields,catalog)
-        write(catalog,'Photo Style Match: composite point curve',function()
+        write(catalog,'Lightroom Style: composite point curve',function()
             fresh(fields,catalog)
             if curveRevision(photo)~=revision then error('Curve context changed before write') end
             if not photo:createDevelopSnapshot(snapshot,false) then error('Could not create a new recovery snapshot') end
-            photo:applyDevelopSettings(updates,'Photo Style Match point curve ' .. fields.id,false)
+            photo:applyDevelopSettings(updates,'Lightroom Style point curve ' .. fields.id,false)
         end)
         progress.parameters_applied=true
         local matched=false
@@ -258,7 +258,7 @@ function M.execute(fields,progress)
         local snapshot = 'PhotoStyle-before-' .. fields.id
         progress.snapshot_name = snapshot
         fresh(fields,catalog)
-        write(catalog,'Photo Style Match: set explicit parameters',function()
+        write(catalog,'Lightroom Style: set explicit parameters',function()
             fresh(fields,catalog)
             local current = settings(photo)
             if changesCurve and Json.encode(curveState(photo))~=Json.encode(beforeCurve) then
@@ -266,7 +266,7 @@ function M.execute(fields,progress)
             end
             for key,value in pairs(expected) do if math.abs(current[key]-value)>0.0001 then error('Parameter changed before write: ' .. key) end end
             if not photo:createDevelopSnapshot(snapshot,false) then error('Could not create a new recovery snapshot') end
-            photo:applyDevelopSettings(nativeUpdates,'Photo Style Match ' .. fields.id,false)
+            photo:applyDevelopSettings(nativeUpdates,'Lightroom Style ' .. fields.id,false)
         end)
         progress.parameters_applied = true
         local after,matched
