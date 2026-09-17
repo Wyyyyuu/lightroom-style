@@ -45,8 +45,6 @@ Copy-Item -LiteralPath './lightroom-style' -Destination $skillDestination -Recur
 
 安装后新建对话。如果没有识别到技能，重启 Codex 再试。
 
-旧版名称是 `photo-style-match`。升级时用新文件夹替换旧版，之后使用 `$lightroom-style` 调用；Lightroom 中已有的照片和虚拟副本不受影响。
-
 ### 3. 加载 Lightroom 插件
 
 skill 提供操作说明，插件负责在 Lightroom 中执行，两者都需要安装。首次使用时，助手会检查连接并尝试完成插件安装；如果无法操作桌面，需要手动加载：

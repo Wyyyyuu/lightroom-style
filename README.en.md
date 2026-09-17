@@ -45,8 +45,6 @@ Copy-Item -LiteralPath './lightroom-style' -Destination $skillDestination -Recur
 
 Start a new conversation after installing. If the skill is not recognized, restart Codex.
 
-Earlier versions were named `photo-style-match`. Replace the old folder when upgrading, then invoke `$lightroom-style`. Existing Lightroom photos and virtual copies are unaffected.
-
 ### 3. Load the Lightroom plugin
 
 The skill provides instructions; the plugin executes them in Lightroom. Both need to be installed. On first use, the assistant checks the connection and attempts plugin setup. If it cannot control the desktop, load the plugin manually:
