@@ -20,10 +20,12 @@ Example from the skill directory:
 python scripts/lightroom_probe.py --timeout 15
 ```
 
-First-use installation and UI loading remain governed by [the bridge workflow](bridge.md#automatic-first-use-setup). A desktop tool must expose readable native Lightroom state; a browser-only tool is insufficient. Discover the tool actually supplied by the host. If the deployment enforces a strict allowlist, its maintainer must add that exact binding to `host_tools` and `allowed-tools` under the deployment's permissions before use. Without an available and permitted binding, request only the needed manual UI action. Do not invent a desktop tool name or bypass an allowlist through shell automation.
+First-use installation and UI loading remain governed by [the bridge workflow](bridge.md#automatic-first-use-setup). A desktop tool must expose readable native Lightroom state; a browser-only tool is insufficient. Discover the tool actually supplied by the host. If the deployment enforces a strict allowlist, its maintainer must add that exact binding to `host_tools` and `allowed-tools` under the deployment's permissions before use. Distinguish an unavailable binding from denied app access; use the bridge guide to recover approval before falling back to manual action. Do not invent a desktop tool name or bypass an allowlist through shell automation.
 
 ## Maintaining the catalog
 
 Edit `tools.yaml` first. When host tool names change, update the `allowed-tools` string to match, preserving order. Local scripts belong in `cli_helpers`, not `allowed-tools`. A different host needs verified tool-name mappings; do not copy Codex names and claim compatibility. Keep the Chinese guide aligned.
 
 Run `python tools/build_release.py --check` from the repository root. It verifies the catalog schema, frontmatter consistency, unique tool/helper IDs, and that helper scripts and guides are packaged. These checks verify declarations and distribution, not runtime availability, UI control, or Lightroom edits. Existing host permissions and fresh native receipts remain necessary.
+
+Connected grading: use [compact rounds](rounds.md) and scripts/lightroom_round.py for sequential guarded groups with one export.

@@ -50,3 +50,5 @@ Classic SDK 是可选的插件集成，并非预装的 MCP 服务。使用前确
 Classic 13.0.2 曾有原生 JPEG 导入/复制/应用/回读/导出的验证记录。每个真实任务仍需要自己的参数回执和渲染检查。RAW 开尔文白平衡、其他版本、云产品以及桥接不支持的控件，都需要单独验收。
 
 官方参考：[Adobe Lightroom Classic SDK](https://developer.adobe.com/lightroom-classic/)。已安装的控件和当前工具结果决定实际可执行的内容。
+
+局部柔化参见[原生蒙版](masks.zh-CN.md)：命令模块 0.3.0，支持明亮度范围与过渡控制（Classic 13.0.2）、主体／天空／背景选区创建，或按精确已有蒙版 ID 调整；每张图仍须目视验收。

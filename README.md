@@ -64,7 +64,7 @@ Copy-Item -LiteralPath './lightroom-style' -Destination $skillDestination -Recur
 
 ### 3. 加载 Lightroom 插件
 
-首次调色时，agent 会先检查连接；缺少插件文件时自动运行 `setup_lightroom.py`，并在有可用桌面控制工具时完成添加、启用和连接验证。没有桌面控制通道时，仍需你完成下面的管理器操作。已有可用连接会直接复用。详见[首次使用流程](lightroom-style/references/bridge.zh-CN.md#首次使用时自动准备)。
+首次调色时，agent 会先检查连接；缺少插件文件时自动运行 `setup_lightroom.py`，并在有可用桌面控制工具时完成添加、启用和连接验证。应用权限不足时，会先提示你在宿主中授权 Lightroom；宿主支持时可选择“始终允许”，供后续任务复用。没有桌面控制通道时，才需你完成必要的启动或管理器操作。已有可用连接会直接复用。详见[首次使用流程](lightroom-style/references/bridge.zh-CN.md#首次使用时自动准备)。
 
 也可手动安装：
 
@@ -122,14 +122,14 @@ Lightroom 虚拟副本 → 原生参数修改
 
 | 项目 | 当前范围 |
 | --- | --- |
-| 已验证环境 | Windows · Lightroom Classic 13.0.2 · 插件 0.2.2.0 |
+| 已验证环境 | Windows · Lightroom Classic 13.0.2 · 插件 0.2.3.0 |
 | 原生编辑 | 受保护虚拟副本上的影调、参数曲线与综合点曲线、JPEG 白平衡、HSL 和颜色分级 |
 | 原生导出 | 质量 0.95 的 JPEG · sRGB · 原始尺寸 · 新输出目录 |
 | 图像测量 | 支持已渲染的 8-bit SDR 图片；RAW、MPO/多帧、HDR 和高位深源图需先取得适用的软件渲染预览 |
-| 桥接未提供 | 独立 RGB 通道曲线写入、蒙版、裁切、修复、锐化、降噪、配置文件写入、任意预设 |
+| 桥接未提供 | 任意蒙版形状绘制、裁切、修复、锐化、降噪、配置文件写入、任意预设 |
 | 需要单独验证 | RAW 白平衡、其他 Classic 版本、macOS、Lightroom 云版、其他智能体宿主或调色软件 |
 
-已支持参数曲线，以及白色 RGB 综合点曲线：可柔化黑白端点，用中间锚点增强层次。每次调整均回读参数并检查 Lightroom 导出，按照片选择曲线，不套用固定预设。详见 [曲线指南](lightroom-style/references/curves.zh-CN.md)。
+已支持参数曲线、白色 RGB 综合点曲线和独立红／绿／蓝通道曲线：可柔化黑白端点，用中间锚点增强层次。每次调整均回读参数并检查 Lightroom 导出，按照片选择曲线，不套用固定预设。详见 [曲线指南](lightroom-style/references/curves.zh-CN.md)。
 
 桥接尚未提供的控件需要实际可用的桌面控制通道。TIFF/HDR 等输出要求，需要使用软件中适用的导出流程。
 
@@ -155,6 +155,8 @@ Lightroom 插件本身不联网，图像统计在本地运行。AI 宿主如何�
 ## 工具架构
 
 `SKILL.md` 的 YAML 元数据在顶层声明 `allowed-tools`，`metadata.tool-catalog` 指向独立的 [tools.yaml](lightroom-style/tools.yaml)。工具名、脚本入口、用途及可选桌面能力集中在这份清单中，skill 正文保留调色流程。修改工具清单后，发布检查会验证 frontmatter 是否同步、脚本和指南是否完整打包。
+
+颗粒接口支持数量、大小、粗糙度（`GrainAmount` / `GrainSize` / `GrainFrequency`，0–100），由 Lightroom 原生渲染。仅按参考纹理或明确要求添加，保留旧值校验与原片保护，详见[颗粒指南](lightroom-style/references/bridge.zh-CN.md#原生颗粒)。
 
 调用关系：**agent → 宿主工具 → Python 客户端 → Lightroom 插件 → 原生参数与渲染**。工具清单不会注册 MCP 服务或自动授予权限；首次安装/加载仍按桥接指南执行。宿主差异和维护方法见[工具集成指南](lightroom-style/references/tools.zh-CN.md)。
 
@@ -198,3 +200,7 @@ python tools/build_release.py
 本技能使用 [Anthropic skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator) 整理和改进；它是制作工具，不是修图运行依赖。
 
 本独立项目采用 [MIT 许可证](LICENSE)。第三方软件与照片仍适用各自的许可和权利。
+
+局部朦胧／柔化：先观察朦胧区域及其明暗度，必要时一次性测量，再用明亮度范围和过渡控制降低局部清晰度／纹理；支持按同一蒙版 ID 修正、统一导出。明亮度与背景蒙版已在 Classic 13.0.2 实机验证，明亮度结构写入限定该版本。主体／天空仍需单独实测。见[蒙版说明](lightroom-style/references/masks.zh-CN.md)。
+
+原色色相校准：支持红、绿、蓝原色色相，按需并入首轮，保留 HSL、原色饱和度、阴影色调和配置文件。已在 Classic 13.0.2 JPEG 虚拟副本上实机验证，详见[校准说明](lightroom-style/references/calibration.zh-CN.md)。

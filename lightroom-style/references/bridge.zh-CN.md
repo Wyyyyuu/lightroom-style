@@ -6,6 +6,8 @@
 
 工具名与 CLI 入口统一维护在 [tools.yaml](../tools.yaml)；适配宿主时参阅[工具集成指南](tools.zh-CN.md)。
 
+已连接时优先使用[精简轮次](rounds.zh-CN.md)，减少模型往返。CLI 默认输出摘要；`--full` 返回原有完整 JSON 结构，Python 接口仍返回完整回执。
+
 ## 安装与连接
 
 ### 首次使用时自动准备
@@ -15,7 +17,7 @@
 1. 先运行连接检查。已有可用连接就直接复用，不要每次重装或重新载入。超时不代表插件文件缺失；先检查错误，条件允许时核对实际加载路径。
 2. 缺少文件时运行 `python scripts/setup_lightroom.py`。此 Windows 脚本仅使用随 skill 附带的资源，安装到默认 Modules 文件夹，返回包含准确路径的 JSON。已核实的其他位置可用 `--plugin-dir ABSOLUTE_PATH` 指定。脚本不依赖第三方 Python 包。退出码 0 表示文件安装完成或已有相同版本；2 表示已有版本不同且已保留；1 表示安装错误。不同版本按下文备份流程有意更新，不要反复运行安装脚本。安装失败时暂存文件保留在报告的 `.installing` 路径，供诊断使用。
 3. 有桌面工具且能读取界面时，必要时打开 Lightroom Classic，不终止现有会话、不升级目录。在“文件 → 增效工具管理器”中，仅在插件不存在时添加返回的文件夹，禁用时启用，有意更新后才重新载入。运行只读连接检查并关闭管理器。操作必须依据实际可见控件，不使用盲目按键或固定坐标，不修改偏好设置或目录数据库强制注册。
-4. 再运行连接检查，要求通过下文的新回执、协议与目录验证。没有可用桌面通道时，说明这一具体限制，只请用户完成剩余的管理器操作，然后继续验证；此环境下不能承诺无人值守加载。
+4. 再运行连接检查，要求通过下文的新回执、协议与目录验证。启动或访问失败时，先按下文恢复流程判断，再请求必要的手动操作；此环境下不能承诺无人值守加载。
 
 文件安装、软件加载和连接验证是三个不同状态，脚本不会将它们混淆。现有 `LrInitPlugin` 会在 Lightroom 加载插件时启动后台任务，无需新增开机服务或定时任务。仅安装 skill 不会自动执行安装钩子；agent 在首次使用时遵循此流程。
 
@@ -29,7 +31,19 @@
 python scripts/lightroom_probe.py --timeout 15
 ```
 
-必须取得新回执，包含 `command_protocol: 1`、`bridge_version: 0.2.0` 和成功的 `capabilities.catalog.ok`；记录 `capabilities.catalog.value.path`。插件包版本为 0.2.2.0，启动诊断版本仍为 0.2.0。命令回执报告 `command_version: 0.2.2`，使用曲线前需核对。后台任务每次轮询都会加载命令模块，因此替换 Commands.lua 无需重启后台任务；面板元信息在重新载入后更新。`connected: true` 仅证明读取通道已连接。当前选中照片只是诊断上下文，不代表获准编辑的目标。默认状态目录为 `%APPDATA%\Adobe\Lightroom\PhotoStyleMatchBridge`；实际位置不同时使用 `--state-dir`。
+必须取得新回执，包含 `command_protocol: 1`、`bridge_version: 0.2.0` 和成功的 `capabilities.catalog.ok`；记录 `capabilities.catalog.value.path`。插件包版本为 0.3.0.0，启动诊断版本仍为 0.2.0。命令回执报告 `command_version: 0.3.0`，使用曲线前需核对。后台任务每次轮询都会加载命令模块，因此替换 Commands.lua 无需重启后台任务；面板元信息在重新载入后更新。`connected: true` 仅证明读取通道已连接。当前选中照片只是诊断上下文，不代表获准编辑的目标。默认状态目录为 `%APPDATA%\Adobe\Lightroom\PhotoStyleMatchBridge`；实际位置不同时使用 `--state-dir`。
+
+### 启动与权限恢复
+
+调色请求已包含任务范围内的常规启动意图，不要重复询问。宿主的应用访问权限是另一层许可。
+
+- **已连接：** 复用新的桥接回执；支持的参数调整无需桌面交互。
+- **未运行：** 使用实际可用且已获准的原生桌面工具启动已安装的 Lightroom Classic，启动完成后再检查连接。不能仅凭连接超时断定软件未运行。
+- **应用访问被拒绝：** 报告被拒绝的具体工具与动作，请用户完成宿主的应用授权，不要笼统要求手动启动。宿主提供该选项时，用户可对 Lightroom 选择 **Always allow（始终允许）**，并在 **Settings > Computer Use（设置 → 计算机使用）** 中管理。权限改变后才恢复；不要重复已被拒绝的调用，也不要换用 shell 或其他工具绕过拒绝。安装流程不得代替用户修改权限设置。
+- **运行中但未连接：** 检查插件注册与启用状态，按上文连接流程处理。缺少文件、未加载插件、请求未响应是不同情况。
+- **没有原生桌面通道：** 说明缺少的能力，仅请求必要的启动或管理器操作。用户完成后，重新取得桥接回执验证。
+
+保存阻塞原因与下一步，等待期间暂停依赖它的修改和重复安装。能否保存长期授权取决于宿主与管理员策略，参见 [Computer Use 权限指南](https://learn.chatgpt.com/docs/computer-use)。安装 skill 或声明 `allowed-tools` 不能授予应用访问权限。
 
 ## 确定目标并保留基线
 
@@ -56,6 +70,7 @@ python scripts/lightroom_client.py export --catalog "CATALOG.lrcat" --path "TARG
 
 | 分组 | 允许的数值字段与范围 |
 | --- | --- |
+| 颗粒 | `GrainAmount`（数量）、`GrainSize`（大小）、`GrainFrequency`（粗糙度），均为 0…100 |
 | 影调 | `Exposure2012` −5…5；`Contrast2012`、`Highlights2012`、`Shadows2012`、`Whites2012`、`Blacks2012` −100…100 |
 | 参数色调曲线 | `ParametricShadows`、`ParametricDarks`、`ParametricLights`、`ParametricHighlights` -100…100；面板必须已启用 |
 | 整体颜色 | `Vibrance`、`Saturation` −100…100 |
@@ -70,7 +85,19 @@ python scripts/lightroom_client.py export --catalog "CATALOG.lrcat" --path "TARG
 
 曲线选择与检查见[曲线指南](curves.zh-CN.md)。照片读取结果包含 `curve_state`，其中提供面板开关、区域分界和带索引的点曲线坐标，供比较使用；同时返回不透明的 `curve_revision` 状态校验值。综合点曲线使用独立的 `curve` 操作，传入新读取的校验值；其他曲线上下文均保留并再次核验。
 
-桥接不提供独立 RGB 曲线写入、曲线区域分界、蒙版、裁切、锐化、降噪、相机配置文件写入或任意预设。需要不支持的控件时，使用实际验证过的 UI 通道，或说明缺少的能力。不能因为软件文档描述了某项功能，就声称桥接支持它。
+桥接不提供曲线区域分界、任意蒙版形状绘制、裁切、锐化、降噪、相机配置文件写入或任意预设。需要不支持的控件时，使用实际验证过的 UI 通道，或说明缺少的能力。不能因为软件文档描述了某项功能，就声称桥接支持它。
+
+## 原生颗粒
+
+命令模块 `0.2.3` 通过 `apply` 支持 `GrainAmount`（数量）、`GrainSize`（大小）和 `GrainFrequency`（界面的粗糙度），范围均为 0–100。每个字段都必须提供新读取的 `--expect` 值。数量为 0 时关闭附加颗粒；此时仅改变大小或粗糙度没有可见效果。
+
+```text
+python scripts/lightroom_client.py apply --catalog "CATALOG.lrcat" --path "TARGET.jpg" --photo-id COPY_ID --set GrainAmount=20 --expect GrainAmount=0 --set GrainSize=25 --expect GrainSize=25 --set GrainFrequency=50 --expect GrainFrequency=50
+```
+
+示例仅演示语法，不是风格预设，应先读取当前值再决定参数。Lightroom 提供开关信息时，`grain_state` 返回 `EnableGrain` / `EnableEffects`。明确禁用的开关会阻止写入；只能通过已验证的原生界面启用，再重新读取。未返回开关不等于面板已启用，必须检查实际导出。开关状态竞争与读回不符按正常恢复规则报错；桥接不会隐式启用其他效果。
+
+仅在用户要求或参考纹理支持时加颗粒，区分胶片颗粒、JPEG 压缩伪影和已有噪点；增加颗粒不能消除后两者。在 100% 和实际展示尺寸检查原生导出，重点看皮肤、天空与阴影。测试纹理时保留影调与曲线。参见 [Adobe 颗粒控制说明](https://helpx.adobe.com/lightroom-classic/desktop/process-and-develop-photos/retouch-photos.html#simulate-film-grain)。
 
 ## 原生导出与验收
 
@@ -94,6 +121,14 @@ python scripts/lightroom_client.py status --request-id REQUEST_ID --timeout 15
 
 ## 兼容性
 
+颗粒三参数及分别调整后的原生渲染，已在 Windows / Lightroom Classic 13.0.2、命令模块 0.2.3 验证。
+
 已在 Windows、Lightroom Classic 13.0.2、ProcessVersion 15.4 上测试：导入、虚拟副本、影调/颜色、参数曲线与综合点曲线写入、独立回读，以及原生 sRGB JPEG 导出。RAW 白平衡和其他版本需单独进行原生验证。命令成功不代表审美质量合格。
 
 主要 API 入口：[Adobe Lightroom Classic SDK](https://developer.adobe.com/lightroom-classic/)。成功声明必须以当前任务的真实回执和 Lightroom 渲染结果为依据。
+
+局部柔化参见[原生蒙版](masks.zh-CN.md)：命令模块 0.3.0，支持明亮度范围与过渡控制（Classic 13.0.2）、主体／天空／背景选区创建，或按精确已有蒙版 ID 调整；每张图仍须目视验收。
+
+原色色相校准支持 `RedHue`、`GreenHue`、`BlueHue`（-100 到 100），使用 apply 和新鲜旧值，并核验面板已启用；见[校准说明](calibration.zh-CN.md)。
+
+命令模块 0.3.1 支持通过 `curve` 加 `curve_channel` 调整独立红／绿／蓝曲线（CLI 为 `--curve-channel`）；详见[曲线指南](curves.zh-CN.md)。

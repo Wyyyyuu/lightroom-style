@@ -64,7 +64,7 @@ When upgrading from `photo-style-match`, rename the installed skill folder to `l
 
 ### 3. Load the Lightroom plugin
 
-On first use, the agent checks the connection, runs `setup_lightroom.py` if plugin files are missing, and uses an available desktop tool to add/enable the plugin and verify the connection. Without desktop control, you still need to complete the manager steps below. Working connections are reused. See [first-use setup](lightroom-style/references/bridge.md#automatic-first-use-setup).
+On first use, the agent checks the connection, runs `setup_lightroom.py` if plugin files are missing, and uses an available desktop tool to add/enable the plugin and verify the connection. If app access is denied, it asks you to approve Lightroom in the host; choose Always allow where supported to reuse approval in future tasks. Manual startup or manager actions are needed when no desktop channel is available. Working connections are reused. See [first-use setup](lightroom-style/references/bridge.md#automatic-first-use-setup).
 
 For manual installation:
 
@@ -122,12 +122,14 @@ Edits proceed in related parameter groups, with up to three review rounds by def
 
 | Component | Current scope |
 | --- | --- |
-| Verified environment | Windows · Lightroom Classic 13.0.2 · plugin 0.2.2.0 |
+| Verified environment | Windows · Lightroom Classic 13.0.2 · plugin 0.2.3.0 |
 | Native editing | Tone, parametric/composite point curves, JPEG white balance, HSL, and color grading on protected virtual copies |
 | Native export | Quality 0.95 JPEG · sRGB · original dimensions · new output directory |
 | Image measurements | Supported rendered 8-bit SDR images; RAW, MPO/multi-frame, HDR, and high-bit-depth sources need a suitable application-rendered preview |
-| Outside the bridge | Individual RGB curve writes, masks, cropping, retouching, sharpening, denoising, profile writes, and arbitrary presets |
+| Outside the bridge | arbitrary mask geometry, cropping, retouching, sharpening, denoising, profile writes, and arbitrary presets |
 | Needs separate validation | RAW white balance, other Classic versions, macOS, Lightroom cloud, and other agent hosts/applications |
+
+Native grain supports amount, size, and roughness (`GrainAmount` / `GrainSize` / `GrainFrequency`, 0–100), using guarded writes and Lightroom rendering. It is optional, based on reference texture or an explicit request. See the [grain guide](lightroom-style/references/bridge.md#native-grain).
 
 Native curves support regional S-curves and white RGB composite points for softer endpoints with midtone contrast. Each edit is read back and checked in Lightroom exports; curve shape follows the image, not a fixed preset. See the [curve guide](lightroom-style/references/curves.md).
 
@@ -198,3 +200,7 @@ When contributing, include the environment, reproduction steps, expected behavio
 The skill was refined using [Anthropic's skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator); it is a development tool, not a runtime dependency.
 
 This independent project is licensed under the [MIT License](LICENSE). Third-party software and photographs retain their respective licenses and rights.
+
+Local softness: inspect the soft regions and brightness, measure selected regions once when needed, then reduce native local Clarity/Texture within a feathered luminance range. Reuse the same mask ID for corrections and export once. Luminance and background masks have Classic 13.0.2 native acceptance; luminance schema writes are restricted to that version. Subject/sky need separate native tests. See [mask controls](lightroom-style/references/masks.md).
+
+RGB primary hue calibration: RedHue, GreenHue and BlueHue can join the first round when appropriate. HSL, primary saturation, shadow tint and profile are preserved. Native JPEG acceptance completed on Classic 13.0.2; see [calibration](lightroom-style/references/calibration.md).

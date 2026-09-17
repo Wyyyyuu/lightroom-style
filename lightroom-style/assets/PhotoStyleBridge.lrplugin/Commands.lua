@@ -8,6 +8,8 @@ local M = {}
 local ranges = {
     Exposure2012={-5,5}, Contrast2012={-100,100}, Highlights2012={-100,100},
     Shadows2012={-100,100}, Whites2012={-100,100}, Blacks2012={-100,100},
+    RedHue={-100,100}, GreenHue={-100,100}, BlueHue={-100,100},
+    GrainAmount={0,100}, GrainSize={0,100}, GrainFrequency={0,100},
     Vibrance={-100,100}, Saturation={-100,100}, Temperature={2000,50000},
     Tint={-150,150}, IncrementalTemperature={-100,100}, IncrementalTint={-100,100},
     SplitToningShadowHue={0,360}, SplitToningHighlightHue={0,360},
@@ -81,12 +83,26 @@ end
 local function curveRevision(photo)
     return Json.encode({settings=settings(photo),curve_state=curveState(photo)})
 end
+local function grainState(photo)
+    local raw,result=photo:getDevelopSettings(),{}
+    for _,key in ipairs({'EnableGrain','EnableEffects'}) do
+        if type(raw[key])=='boolean' then result[key]=raw[key] end
+    end
+    return result
+end
+local function calibrationState(photo)
+    local raw,result=photo:getDevelopSettings(),{}
+    for _,key in ipairs({'EnableCalibration','ShadowTint','RedSaturation','GreenSaturation','BlueSaturation'}) do
+        if type(raw[key])=='boolean' or type(raw[key])=='number' then result[key]=raw[key] end
+    end
+    return result
+end
 local function describe(photo)
     return { photo_id=tostring(photo.localIdentifier), path=photo:getRawMetadata('path'),
         filename=photo:getFormattedMetadata('fileName'),
         is_virtual_copy=photo:getRawMetadata('isVirtualCopy') == true,
         copy_name=photo:getFormattedMetadata('copyName') or '', settings=settings(photo),
-        curve_state=curveState(photo), curve_revision=curveRevision(photo) }
+        curve_state=curveState(photo), curve_revision=curveRevision(photo), grain_state=grainState(photo), calibration_state=calibrationState(photo) }
 end
 local function validNumber(value,key,range)
     local number = tonumber(value)
@@ -155,13 +171,25 @@ function M.execute(fields,progress)
     local photo = resolve(catalog,fields)
     if photo:getRawMetadata('isVideo') then error('Video is not supported') end
     if action == 'read' then return {photo=describe(photo)} end
-    if action == 'curve' then
+    if action == 'mask-read' or action == 'mask-create' or action == 'mask-adjust' then
+        local result=dofile(_PLUGIN.path .. '/Masks.lua').execute(photo,catalog,fields,progress,
+            {json=Json,required=required,number=validNumber,fresh=fresh,write=write,describe=describe})
+        result.photo=describe(photo)
+        return result
+    end
+    if action == 'curve' or action == 'curve-channel' then
         if not photo:getRawMetadata('isVirtualCopy') or not (photo:getFormattedMetadata('copyName') or ''):match('^PhotoStyle%-') then
             error('Writes require a PhotoStyle- virtual copy; originals and unrelated copies are protected')
         end
         for key in pairs(fields) do
             if key:match('^set%.') or key:match('^expect%.') then error('Curve action cannot mix scalar parameter writes') end
         end
+        local channel=fields.curve_channel or 'composite'
+        local suffixes={composite='',red='Red',green='Green',blue='Blue'}
+        if suffixes[channel]==nil or (action=='curve-channel' and channel=='composite')
+            or (action=='curve' and channel~='composite') then error('Invalid curve channel/action') end
+        local curveKey='ToneCurvePV2012' .. suffixes[channel]
+        local extendedKey='ExtendedToneCurvePV2012' .. suffixes[channel]
         local points,indexed=pointCurve(required(fields,'curve_points'))
         local revision=required(fields,'expected_revision')
         if curveRevision(photo)~=revision then error('Stale expected curve revision') end
@@ -172,20 +200,21 @@ function M.execute(fields,progress)
             error('HDR point curve writes are not supported')
         end
         if not context.ToneCurvePV2012 or not context.ToneCurveName2012 then error('Composite PV2012 point curve is absent') end
-        local extended=context.ExtendedToneCurvePV2012
-        if extended and Json.encode(extended)~=Json.encode(context.ToneCurvePV2012) then
-            error('Composite and extended curve representations differ; refusing an ambiguous write')
+        if not context[curveKey] then error('Requested channel point curve is absent') end
+        local extended=context[extendedKey]
+        if extended and Json.encode(extended)~=Json.encode(context[curveKey]) then
+            error('Selected and extended curve representations differ; refusing an ambiguous write')
         end
-        local updates={ToneCurvePV2012=points,ToneCurveName2012='Custom'}
-        if extended then updates.ExtendedToneCurvePV2012=points end
+        local updates={[curveKey]=points,ToneCurveName2012='Custom'}
+        if extended then updates[extendedKey]=points end
         local expectedContext={}
         for k,v in pairs(context) do expectedContext[k]=v end
-        expectedContext.ToneCurvePV2012=indexed; expectedContext.ToneCurveName2012='Custom'
-        if extended then expectedContext.ExtendedToneCurvePV2012=indexed end
+        expectedContext[curveKey]=indexed; expectedContext.ToneCurveName2012='Custom'
+        if extended then expectedContext[extendedKey]=indexed end
         local snapshot='PhotoStyle-before-' .. fields.id
         progress.snapshot_name=snapshot
         fresh(fields,catalog)
-        write(catalog,'Lightroom Style: composite point curve',function()
+        write(catalog,'Lightroom Style: ' .. channel .. ' point curve',function()
             fresh(fields,catalog)
             if curveRevision(photo)~=revision then error('Curve context changed before write') end
             if not photo:createDevelopSnapshot(snapshot,false) then error('Could not create a new recovery snapshot') end
@@ -196,11 +225,13 @@ function M.execute(fields,progress)
         for attempt=1,20 do
             matched=Json.encode(curveState(photo))==Json.encode(expectedContext)
                 and Json.encode(settings(photo))==Json.encode(before.settings)
+            matched=matched and Json.encode(calibrationState(photo))==Json.encode(before.calibration_state)
+                and Json.encode(grainState(photo))==Json.encode(before.grain_state)
             if matched then break end
             Tasks.sleep(0.25)
         end
         if not matched then error('Point curve readback did not match or unrelated settings changed; inspect snapshot, do not resend blindly') end
-        return {photo=describe(photo),before=before,applied_curve=indexed,readback_verified=true,snapshot_name=snapshot}
+        return {photo=describe(photo),before=before,applied_curve=indexed,curve_channel=channel,readback_verified=true,snapshot_name=snapshot}
     end
     if action == 'copy' then
         local before = settings(photo)
@@ -245,6 +276,16 @@ function M.execute(fields,progress)
             end
         end
         if next(updates) == nil then error('No parameter changes supplied') end
+        local changesCalibration=updates.RedHue~=nil or updates.GreenHue~=nil or updates.BlueHue~=nil
+        local beforeCalibration=calibrationState(photo)
+        if changesCalibration and beforeCalibration.EnableCalibration~=true then
+            error('Calibration panel must be verified enabled before primary hue edits')
+        end
+        local changesGrain=updates.GrainAmount~=nil or updates.GrainSize~=nil or updates.GrainFrequency~=nil
+        local beforeGrain=grainState(photo)
+        if changesGrain and (beforeGrain.EnableGrain==false or beforeGrain.EnableEffects==false) then
+            error('Grain/Effects panel is disabled; verify it enabled through native UI before grain edits')
+        end
         local changesCurve=false
         for key in pairs(updates) do if key:match('^Parametric') then changesCurve=true end end
         local beforeCurve=curveState(photo)
@@ -261,7 +302,15 @@ function M.execute(fields,progress)
         write(catalog,'Lightroom Style: set explicit parameters',function()
             fresh(fields,catalog)
             local current = settings(photo)
-            if changesCurve and Json.encode(curveState(photo))~=Json.encode(beforeCurve) then
+            if changesCalibration and (Json.encode(calibrationState(photo))~=Json.encode(beforeCalibration)
+                or Json.encode(curveState(photo))~=Json.encode(beforeCurve)
+                or Json.encode(current)~=Json.encode(before)) then
+                error('Calibration context changed before write')
+            end
+            if changesGrain and Json.encode(grainState(photo))~=Json.encode(beforeGrain) then
+                error('Grain context changed before write')
+            end
+            if (changesCurve or changesGrain) and Json.encode(curveState(photo))~=Json.encode(beforeCurve) then
                 error('Curve context changed before write')
             end
             for key,value in pairs(expected) do if math.abs(current[key]-value)>0.0001 then error('Parameter changed before write: ' .. key) end end
@@ -274,7 +323,15 @@ function M.execute(fields,progress)
             after=settings(photo); matched=true
             for key,value in pairs(updates) do if type(after[key]) ~= 'number' or math.abs(after[key]-value)>0.0001 then matched=false end end
             if changesWhiteBalance and after.WhiteBalance~='Custom' then matched=false end
-            if changesCurve and Json.encode(curveState(photo))~=Json.encode(beforeCurve) then matched=false end
+            if changesGrain and Json.encode(grainState(photo))~=Json.encode(beforeGrain) then matched=false end
+            if (changesCurve or changesGrain) and Json.encode(curveState(photo))~=Json.encode(beforeCurve) then matched=false end
+            if changesCalibration then
+                if Json.encode(calibrationState(photo))~=Json.encode(beforeCalibration)
+                    or Json.encode(curveState(photo))~=Json.encode(beforeCurve) then matched=false end
+                for key,value in pairs(before) do
+                    if updates[key]==nil and not (changesWhiteBalance and key=='WhiteBalance') and after[key]~=value then matched=false end
+                end
+            end
             if matched then break end
             Tasks.sleep(0.25)
         end
@@ -332,7 +389,7 @@ function M.poll(folder)
                     if fields.id ~= request.id then error('Request ID/filename mismatch') end
                     return M.execute(fields,progress)
                 end)
-                local response={protocol=1,command_version='0.2.2',id=request.id,ok=ok,completed_at_epoch=os.time(),progress=progress}
+                local response={protocol=1,command_version='0.3.1',id=request.id,ok=ok,completed_at_epoch=os.time(),progress=progress}
                 if ok then response.result=value else response.error=tostring(value) end
                 local out,err=io.open(stem .. '.result.json','wb')
                 if not out then error(err) end

@@ -6,6 +6,8 @@ Use `scripts/lightroom_probe.py` for a fresh connection check and `scripts/light
 
 Tool names and CLI entry points are maintained in [tools.yaml](../tools.yaml); see [tool integration](tools.md) when adapting the host.
 
+For an already connected session, use [compact rounds](rounds.md) to reduce model round trips. The CLI now prints compact receipts by default; use `--full` for the previous full JSON shape. The Python API still returns full receipts.
+
 ## Install and connect
 
 ### Automatic first-use setup
@@ -15,7 +17,7 @@ When a grading request requires this bridge, carry out setup within the task and
 1. Run the probe first. Reuse a working connection; do not reinstall or reload on every task. A timeout does not prove that files are missing. Inspect errors and the actual loaded plugin path when available.
 2. If files are missing, run `python scripts/setup_lightroom.py`. This Windows helper uses only the bundled assets, installs into the conventional Modules folder, and returns JSON with the exact path. Use `--plugin-dir ABSOLUTE_PATH` for a verified alternative. It needs no third-party Python packages. Exit 0 means files are installed or identical; exit 2 means an existing installation differs and was preserved; exit 1 indicates an installation error. Resolve a differing installation deliberately with the backup procedure below, not by repeatedly running setup. Failed staging files are retained at the reported `.installing` path for diagnosis.
 3. With an available desktop tool and readable UI state, open Lightroom Classic if necessary without terminating a session or upgrading a catalog. In File → Plug-in Manager, add the returned folder only if it is absent, enable it if disabled, or reload only after a deliberate update. Run the read-only connection check and close the manager. Use observed controls, never blind keystrokes or fixed coordinates. Do not modify preferences/catalog databases to force registration.
-4. Run the probe again and require the fresh protocol/catalog checks below. If no usable desktop channel exists, explain that specific limitation and ask the user only to complete the remaining manager action, then continue verification. Do not promise unattended loading in that environment.
+4. Run the probe again and require the fresh protocol/catalog checks below. For startup or access failures, use the recovery steps below before requesting manual action. Do not promise unattended loading in that environment.
 
 Installation is not loading, and loading is not a verified connection. The helper never claims either. The plugin's existing `LrInitPlugin` starts its worker when Lightroom loads it; no new startup service or scheduled task is needed. Installing this skill alone does not execute a setup hook: the agent follows this procedure when first using it.
 
@@ -29,7 +31,19 @@ After an update, click the read-only connection check button in the manager (cur
 python scripts/lightroom_probe.py --timeout 15
 ```
 
-Require a fresh receipt with `command_protocol: 1`, `bridge_version: 0.2.0`, and `capabilities.catalog.ok`; record `capabilities.catalog.value.path`. Plugin package version is 0.2.2.0; the bootstrap diagnostic remains 0.2.0. Command receipts report `command_version: 0.2.2`; check this before using curves. The worker loads the command module per poll, so replacing Commands.lua does not require a worker restart; panel metadata updates after Reload Plug-in. `connected: true` establishes the read channel only. Current selection is diagnostic context, not an authorized target. Default state directory: `%APPDATA%\Adobe\Lightroom\PhotoStyleMatchBridge`; use `--state-dir` when the actual location differs.
+Require a fresh receipt with `command_protocol: 1`, `bridge_version: 0.2.0`, and `capabilities.catalog.ok`; record `capabilities.catalog.value.path`. Plugin package version is 0.3.0.0; the bootstrap diagnostic remains 0.2.0. Command receipts report `command_version: 0.3.0`; check this before using curves. The worker loads the command module per poll, so replacing Commands.lua does not require a worker restart; panel metadata updates after Reload Plug-in. `connected: true` establishes the read channel only. Current selection is diagnostic context, not an authorized target. Default state directory: `%APPDATA%\Adobe\Lightroom\PhotoStyleMatchBridge`; use `--state-dir` when the actual location differs.
+
+### Startup and permission recovery
+
+A grading request authorizes routine startup within its scope; do not ask for that intent again. Host app access is separate.
+
+- **Connected:** reuse the fresh bridge response; no desktop interaction is needed for supported edits.
+- **Not running:** use an available, permitted native desktop tool to launch the installed Lightroom Classic, then probe once startup finishes. Do not infer this state from a probe timeout alone.
+- **App access denied:** report the exact denied tool/action. Ask for the host's app approval, not a generic manual launch. In hosts offering it, the user can choose **Always allow** for Lightroom and review it under **Settings > Computer Use**. Resume only after approval changes; do not retry unchanged denials or switch to shell/another tool to evade them. Never modify permission settings on the user's behalf as part of setup.
+- **Running but disconnected:** inspect plugin registration/enabled state and follow the setup steps above. Missing plugin files, an unloaded plugin, and an unanswered request are different conditions.
+- **No native desktop channel:** explain the unavailable capability and request only the necessary launch or manager action. After the user completes it, verify a fresh bridge response.
+
+Save the blocker and next step; pause dependent edits and repeated setup while waiting. Persistent approval support depends on the host and administrator policy. See [Computer Use permissions](https://learn.chatgpt.com/docs/computer-use). Installing a skill or declaring `allowed-tools` cannot grant app access.
 
 ## Resolve the target and preserve a baseline
 
@@ -56,11 +70,13 @@ These values demonstrate syntax, not a preset. `--set` is an absolute target val
 
 | Group | Allowed numeric fields and ranges |
 | --- | --- |
+| Grain | `GrainAmount`, `GrainSize`, `GrainFrequency` (UI Roughness), each 0…100 |
 | Tone | `Exposure2012` −5…5; `Contrast2012`, `Highlights2012`, `Shadows2012`, `Whites2012`, `Blacks2012` −100…100 |
 | Parametric tone curve | `ParametricShadows`, `ParametricDarks`, `ParametricLights`, `ParametricHighlights` -100…100; panel must already be enabled |
 | Overall color | `Vibrance`, `Saturation` −100…100 |
 | JPEG/RGB white balance | `IncrementalTemperature`, `IncrementalTint` −100…100; despite their names these are absolute slider targets |
 | RAW white balance | `Temperature` 2000…50000, `Tint` −150…150; only if actually returned for the photo; not hardware-validated |
+| RGB primary hue calibration | `RedHue`, `GreenHue`, `BlueHue` −100…100; panel must be enabled; see [calibration](calibration.md) |
 | HSL | `HueAdjustment`, `SaturationAdjustment`, `LuminanceAdjustment` plus Red/Orange/Yellow/Green/Aqua/Blue/Purple/Magenta; −100…100 |
 | Shadow/highlight grading | `SplitToningShadowHue`, `SplitToningHighlightHue` 0…360; matching `Saturation` 0…100; `SplitToningBalance` −100…100 |
 | Midtone/global grading | `ColorGradeMidtoneHue/Sat/Lum`, `ColorGradeGlobalHue/Sat/Lum`; Hue 0…360, Sat 0…100, Lum −100…100 |
@@ -70,7 +86,19 @@ Only numeric parameters present in current photo settings can be written. White-
 
 For curve selection and checks, read [curves.md](curves.md). Photo reads include `curve_state` with the panel switch, region splits, and indexed point-curve coordinates for comparison. Reads also include an opaque `curve_revision` guard. Composite point writes use the separate `curve` action with that fresh revision; all other curve context is preserved and rechecked.
 
-The bridge does not expose individual RGB curve writes, curve region splits, masks, crop, sharpening, denoise, camera profile writes, or arbitrary presets. Use an actually verified UI channel for a needed unsupported control or report the missing capability. Do not claim that a documented UI feature is available through this bridge.
+The bridge does not expose curve region splits, arbitrary mask geometry, crop, sharpening, denoise, camera profile writes, or arbitrary presets. Use an actually verified UI channel for a needed unsupported control or report the missing capability. Do not claim that a documented UI feature is available through this bridge.
+
+## Native grain
+
+With command module `0.2.3`, use `apply` for `GrainAmount`, `GrainSize`, and `GrainFrequency` (Lightroom's Roughness control), each 0–100. Supply fresh `--expect` values for every field. Amount 0 disables added grain; size/roughness alone have no visible effect when amount is 0.
+
+```text
+python scripts/lightroom_client.py apply --catalog "CATALOG.lrcat" --path "TARGET.jpg" --photo-id COPY_ID --set GrainAmount=20 --expect GrainAmount=0 --set GrainSize=25 --expect GrainSize=25 --set GrainFrequency=50 --expect GrainFrequency=50
+```
+
+These are syntax examples, not a style preset. Read before choosing values. `grain_state` reports `EnableGrain`/`EnableEffects` when supplied by Lightroom. An explicitly disabled switch blocks grain writes; enable it only through verified native UI, then read again. Missing switches do not establish an enabled panel: verify the actual export. Panel-state races and readback mismatches fail with the normal recovery rules; the bridge never enables other effects implicitly.
+
+Add grain only when requested or supported by reference texture. Distinguish film grain from JPEG artifacts and baked-in noise; more grain cannot remove either. Inspect native renders at 100% and at the intended viewing size, especially skin, sky, and shadows. Preserve tone/curves while testing texture. See [Adobe's grain controls](https://helpx.adobe.com/lightroom-classic/desktop/process-and-develop-photos/retouch-photos.html#simulate-film-grain).
 
 ## Native export and acceptance
 
@@ -94,6 +122,12 @@ The plugin makes no network requests and launches no external programs. Its loca
 
 ## Compatibility
 
+Grain parameters and separate native renders were verified on Windows / Lightroom Classic 13.0.2 with command module 0.2.3.
+
 Tested with Windows, Lightroom Classic 13.0.2, and ProcessVersion 15.4: import, virtual copies, tone/color, parametric and composite point-curve writes, independent readback, and native sRGB JPEG export. RAW white balance and other versions require separate native validation. A successful command does not establish aesthetic quality.
 
 Primary API entry point: [Adobe Lightroom Classic SDK](https://developer.adobe.com/lightroom-classic/). Success claims must come from actual task receipts and Lightroom renders.
+
+For local softness, use [native masks](masks.md): command module 0.3.0, luminance ranges with explicit feather handles (Classic 13.0.2), subject/sky/background creation, and adjustment of an exact existing mask ID. Inspect each native render.
+
+Independent red/green/blue curves are available in command module 0.3.1 via `curve` plus `curve_channel` (CLI `--curve-channel`); see [curves.md](curves.md).

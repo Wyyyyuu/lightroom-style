@@ -6,21 +6,21 @@
 
 ## 根据照片选择曲线
 
-- 白色 **RGB 综合点曲线** 同时调整所有通道。抬高黑色端点可柔化黑位，压低白色端点可收敛亮部，中间锚点用于调整层次。这可能适合柔和的日系观感，但不是默认预设，也不能代替参考图分析。
+- 白色 **RGB 综合点曲线** 同时调整所有通道。端点应依据参考：强明暗分离的风格保留深黑与明亮白色；仅在图像证据支持时抬黑或压低白端点，中间锚点用于调整层次。颗粒或低饱和度都不能作为压缩端点的依据。
 - 端点压缩与中间调反差是两个独立决定。轻微 S 型会压低较暗的中间调、抬高较亮的中间调；应保持主体清晰，避免头发死黑、白色发灰或肤色反差过强。逆光面部可能需要更平缓的曲线下段。
 - 先检查已有曲线、配置文件、曝光和基本面板中的对比度。有意识地保留或替换现有锚点，不要无意中叠加两条 S 型曲线。压低端点无法恢复 JPEG 中已丢失的高光细节。
 - RGB 综合曲线也可能改变饱和度。需要检查原生渲染中的肤色与色相关系。独立 R/G/B 通道曲线属于不同的颜色控件，不能与白色综合曲线混为一谈。
 
 ## 原生点曲线操作
 
-要求命令模块版本为 `0.2.2`、色调曲线面板已启用，且使用 SDR PV2012 坐标。使用 `curve`，而不是数值参数 `--set`。坐标为 0–255 的输入/输出整数对：共 2–16 对，输入严格递增，输出不递减，首尾输入分别为 0 和 255。
+要求命令模块版本为 `0.3.1`、色调曲线面板已启用，且使用 SDR PV2012 坐标。使用 `curve`，而不是数值参数 `--set`。坐标为 0–255 的输入/输出整数对：共 2–16 对，输入严格递增，输出不递减，首尾输入分别为 0 和 255。
 
 ```python
 from lightroom_client import send_command
 
 identity = dict(catalog=catalog_path, path=target_path, photo_id=copy_id)
 receipt = send_command("read", **identity)
-assert receipt["ok"] and receipt["command_version"] == "0.2.2"
+assert receipt["ok"] and receipt["command_version"] == "0.3.1"
 photo = receipt["result"]["photo"]
 # Illustration only: softer endpoints with a mild middle S; adapt to the image.
 points = [[0, 12], [32, 30], [64, 57], [128, 129],
@@ -38,7 +38,15 @@ assert result["ok"] and result["result"]["readback_verified"]
 
 `ParametricShadows`、`ParametricDarks`、`ParametricLights` 和 `ParametricHighlights` 均接受 -100…100，通过 `apply` 与最新的 `--expect` 值写入；详见[桥接指南](bridge.zh-CN.md)。它们调整影调区域而非明确端点，也不同于基本面板的阴影/高光。区域调整足够时可以使用。Darks -10 / Lights +10 只是示例，并非通用 S 型曲线。桥接要求面板已启用，并保留点曲线和区域边界。
 
-独立 RGB 点曲线、区域边界修改以及 HDR 曲线写入需要经过验证的原生 UI 通道；不要声称桥接已支持这些操作。
+区域边界修改以及 HDR 曲线写入仍需要经过验证的原生 UI 通道。
+
+## 独立红、绿、蓝通道曲线
+
+命令模块 0.3.1 支持在 `send_command("curve", ...)` 中指定 `curve_channel="red"`、`"green"` 或 `"blue"`；CLI 对应 `--curve-channel red`。省略或传入 `composite` 时仍调整白色综合曲线。轮次计划可写 `{"action":"curve","channel":"blue","points":[[0,3],[64,69],[128,128],[192,187],[255,249]]}`；这是语法示例，不是预设。每个步骤刷新状态校验值，相关通道顺序写入后只导出一次。
+
+只写入所选 `ToneCurvePV2012Red/Green/Blue` 及其存在时对应的扩展表示，并将共享曲线名称设为 Custom；保留总曲线、其他通道、参数曲线、配置文件和基本设置。通道缺失、扩展表示含义不明时拒绝写入。客户端使用独立的 `curve-channel` 协议动作，旧插件会拒绝，不会误改总曲线。坐标、身份、快照及回读规则与上文相同。
+
+红通道上提偏红、下压偏青；绿通道上提偏绿、下压偏洋红；蓝通道上提偏蓝、下压偏黄，作用范围由输入明暗区域决定。先用小幅偏移，并在不需变化的区域保留中性锚点。注意与白平衡、颜色分级叠加后的偏色和层次，必须检查原生渲染及所有通道。它与 RGB 原色色相校准是不同控件；仅在有助于参考风格匹配时使用。
 
 ## 验收
 

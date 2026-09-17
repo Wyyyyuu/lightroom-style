@@ -57,6 +57,54 @@ class CommandTests(unittest.TestCase):
             function run() return commands.execute(fields,{}) end
         ''')
 
+
+    def calibration_fixture(self):
+        self.lua.execute("""
+            fields['set.Exposure2012']=nil; fields['expect.Exposure2012']=nil
+            copy.values.RedHue=0; copy.values.GreenHue=0; copy.values.BlueHue=0
+            copy.values.EnableCalibration=true;copy.values.RedSaturation=4;copy.values.GreenSaturation=5
+            copy.values.BlueSaturation=6;copy.values.ShadowTint=2;copy.values.CameraProfile='Embedded'
+            copy.values.HueAdjustmentRed=7
+            fields['set.RedHue']='12';fields['expect.RedHue']='0'
+            fields['set.GreenHue']='-8';fields['expect.GreenHue']='0'
+            fields['set.BlueHue']='-15';fields['expect.BlueHue']='0'
+        """)
+
+    def test_calibration_hues_preserve_hsl_profile_process_and_other_calibration(self):
+        self.calibration_fixture()
+        result=self.lua.eval('run()')
+        self.assertTrue(result['readback_verified'])
+        settings=result['photo']['settings']
+        self.assertEqual([settings[k] for k in ('RedHue','GreenHue','BlueHue')],[12,-8,-15])
+        self.assertEqual(settings['HueAdjustmentRed'],7)
+        self.assertEqual(settings['ProcessVersion'],'15.4')
+        self.assertEqual(result['photo']['curve_state']['CameraProfile'],'Embedded')
+        self.assertEqual(result['photo']['calibration_state']['RedSaturation'],4)
+        self.assertEqual(result['photo']['calibration_state']['ShadowTint'],2)
+
+    def test_calibration_disabled_absent_range_and_context_race_fail_before_write(self):
+        cases=[
+            ("copy.values.EnableCalibration=false",'verified enabled'),
+            ("copy.values.RedHue=nil",'absent'),
+            ("fields['set.BlueHue']='101'",'Out-of-range'),
+            ("fields['expect.RedHue']='1'",'Stale'),
+            ("beforeWrite=function() copy.values.CameraProfile='Changed' end",'context changed'),
+            ("beforeWrite=function() copy.values.BlueSaturation=8 end",'context changed'),
+        ]
+        for setup,message in cases:
+            self.setUp();self.calibration_fixture();self.lua.execute(setup)
+            with self.assertRaisesRegex(Exception,message): self.lua.eval('run()')
+            self.assertEqual(self.lua.globals().applied,0)
+            self.assertEqual(self.lua.globals().snapshots,0)
+
+    def test_calibration_unrequested_side_effect_fails_readback(self):
+        for side_effect in ("self.values.RedSaturation=50","self.values.CameraProfile='Changed'",
+                            "self.values.HueAdjustmentRed=42","self.values.ProcessVersion='6.7'"):
+            self.setUp();self.calibration_fixture()
+            self.lua.execute("local old=copy.applyDevelopSettings;copy.applyDevelopSettings=function(self,v) old(self,v);"+side_effect+" end")
+            with self.assertRaisesRegex(Exception,'readback'): self.lua.eval('run()')
+            self.assertEqual(self.lua.globals().snapshots,1)
+
     def test_apply_snapshot_and_readback(self):
         result = self.lua.eval('run()')
         self.assertTrue(result['readback_verified'])
@@ -110,6 +158,57 @@ class CommandTests(unittest.TestCase):
         self.lua.execute("fields.action='copy'; fields.photo_id='1'")
         self.assertTrue(self.lua.eval('run()')['source_settings_unchanged'])
         self.assertEqual(self.lua.globals().copies, 1)
+
+    def prepare_grain(self):
+        self.lua.execute("""
+            copy.values.GrainAmount=0; copy.values.GrainSize=25; copy.values.GrainFrequency=50
+            copy.values.EnableGrain=true; copy.values.EnableEffects=true
+            copy.values.ToneCurvePV2012={0,8,128,128,255,247}
+            fields['set.Exposure2012']=nil; fields['expect.Exposure2012']=nil
+            fields['set.GrainAmount']='22'; fields['expect.GrainAmount']='0'
+            fields['set.GrainSize']='28'; fields['expect.GrainSize']='25'
+            fields['set.GrainFrequency']='55'; fields['expect.GrainFrequency']='50'
+        """)
+
+    def test_grain_read_apply_and_disable_preserve_baseline(self):
+        self.prepare_grain()
+        result=self.lua.eval('run()')
+        self.assertTrue(result['readback_verified'])
+        for key,value in [('GrainAmount',22),('GrainSize',28),('GrainFrequency',55)]:
+            self.assertEqual(result['photo']['settings'][key],value)
+        self.assertTrue(result['photo']['grain_state']['EnableGrain'])
+        self.assertEqual(result['photo']['curve_state']['ToneCurvePV2012']['2'],8)
+        self.assertEqual(result['photo']['settings']['Exposure2012'],0)
+        self.assertIsNone(self.lua.globals().master['values']['GrainAmount'])
+        self.lua.execute("fields['set.GrainAmount']='0'; fields['expect.GrainAmount']='22'; fields['expect.GrainSize']='28'; fields['expect.GrainFrequency']='55'")
+        self.assertEqual(self.lua.eval('run()')['photo']['settings']['GrainAmount'],0)
+
+    def test_grain_rejects_invalid_missing_stale_disabled_and_races(self):
+        for setup,error in [
+            ("fields['set.GrainAmount']='101'",'Out-of-range'),
+            ("fields['set.GrainSize']='-1'",'Out-of-range'),
+            ("fields['set.GrainFrequency']='101'",'Out-of-range'),
+            ("fields['set.GrainAmount']='nan'",'Invalid numeric'),
+            ("fields['expect.GrainSize']=nil",'Missing field'),
+            ("copy.values.GrainFrequency=nil",'absent'),
+            ("fields['expect.GrainAmount']='1'",'Stale'),
+            ("copy.values.EnableGrain=false",'disabled'),
+            ("copy.values.EnableEffects=false",'disabled'),
+            ("beforeWrite=function() copy.values.EnableGrain=false end",'Grain context changed'),
+            ("beforeWrite=function() copy.values.GrainAmount=9 end",'Parameter changed'),
+            ("fields.photo_id='1'",'originals'),
+        ]:
+            with self.subTest(setup=setup):
+                self.setUp(); self.prepare_grain(); self.lua.execute(setup)
+                with self.assertRaisesRegex(Exception,error): self.lua.eval('run()')
+                self.assertEqual(self.lua.globals().applied,0)
+                self.assertEqual(self.lua.globals().snapshots,0)
+
+    def test_grain_readback_mismatch_retains_recovery_snapshot(self):
+        for setup in ['simulateMismatch=true', "local original=copy.applyDevelopSettings; copy.applyDevelopSettings=function(self,v) original(self,v); self.values.EnableGrain=false end"]:
+            self.setUp(); self.prepare_grain(); self.lua.execute(setup)
+            with self.assertRaisesRegex(Exception,'readback did not match'): self.lua.eval('run()')
+            self.assertEqual(self.lua.globals().snapshots,1)
 
     def prepare_curve(self):
         self.lua.execute('''
@@ -238,6 +337,54 @@ class CommandTests(unittest.TestCase):
             with self.assertRaisesRegex(Exception,'readback did not match'): self.lua.eval('run()')
             self.assertEqual(self.lua.globals().snapshots,1)
 
+    def prepare_channels(self, channel):
+        self.prepare_point_curve()
+        self.lua.execute("""
+            for _,suffix in ipairs({'Red','Green','Blue'}) do
+                copy.values['ToneCurvePV2012'..suffix]={0,0,255,255}
+                copy.values['ExtendedToneCurvePV2012'..suffix]={0,0,255,255}
+            end
+            fields.action='read'; fields.expected_revision=run().photo.curve_revision
+            fields.action='curve-channel'
+        """)
+        self.lua.globals().fields['curve_channel']=channel
+
+    def test_rgb_channels_preserve_composite_and_other_channels(self):
+        for channel in ('red','green','blue'):
+            self.setUp();self.prepare_channels(channel)
+            r=self.lua.eval('run()');c=r['photo']['curve_state']
+            self.assertEqual(r['curve_channel'],channel)
+            self.assertTrue(r['readback_verified'])
+            for suffix in ('Red','Green','Blue'):
+                expected=10 if suffix.lower()==channel else 0
+                self.assertEqual(c['ToneCurvePV2012'+suffix]['2'],expected)
+                self.assertEqual(c['ExtendedToneCurvePV2012'+suffix]['2'],expected)
+            self.assertEqual(c['ToneCurvePV2012']['2'],0)
+            self.assertEqual(c['ExtendedToneCurvePV2012']['2'],0)
+            self.assertEqual(self.lua.globals().master['values']['Exposure2012'],0)
+
+    def test_channel_invalid_missing_stale_and_ambiguous_fail_before_write(self):
+        cases=[("fields.curve_channel='cyan'",'Invalid',False),
+               ("fields.curve_channel=nil",'Invalid',False),
+               ("fields.action='curve'",'Invalid',False),
+               ("copy.values.ToneCurvePV2012Red=nil",'absent',True),
+               ("copy.values.ExtendedToneCurvePV2012Red={0,2,255,255}",'representations differ',True),
+               ("copy.values.ToneCurvePV2012Green={0,2,255,255}",'Stale',False),
+               ("beforeWrite=function() copy.values.ToneCurvePV2012Blue={0,2,255,255} end",'changed before write',False)]
+        for setup,error,refresh in cases:
+            self.setUp();self.prepare_channels('red');self.lua.execute(setup)
+            if refresh:self.lua.execute("fields.action='read'; fields.expected_revision=run().photo.curve_revision;fields.action='curve-channel'")
+            with self.assertRaisesRegex(Exception,error):self.lua.eval('run()')
+            self.assertEqual(self.lua.globals().applied,0)
+            self.assertEqual(self.lua.globals().snapshots,0)
+
+    def test_channel_readback_rejects_wrong_channel_or_preservation_failure(self):
+        for change in ('ToneCurvePV2012','ToneCurvePV2012Green','ExtendedToneCurvePV2012Red'):
+            self.setUp();self.prepare_channels('red')
+            self.lua.execute("local old=copy.applyDevelopSettings;copy.applyDevelopSettings=function(self,v) old(self,v);self.values['"+change+"']={0,3,255,255} end")
+            with self.assertRaisesRegex(Exception,'readback did not match'):self.lua.eval('run()')
+            self.assertEqual(self.lua.globals().snapshots,1)
+
     def test_queue_claim_is_at_most_once(self):
         with tempfile.TemporaryDirectory() as directory:
             folder = Path(directory)
@@ -284,6 +431,22 @@ class ClientTests(unittest.TestCase):
             fields={k:unquote(v) for k,v in (line.split('=',1) for line in content.splitlines())}
             self.assertEqual(fields['curve_points'],'0,10,255,246')
             self.assertEqual(fields['expected_revision'],'{"a":"x=y\\n"}')
+
+    def test_channel_client_routes_fail_closed_and_rejects_invalid_channels(self):
+        for channel in ('red','green','blue'):
+            with tempfile.TemporaryDirectory() as directory:
+                with patch.object(CLIENT,'wait_result',return_value={'ok':True}):
+                    CLIENT.send_command('curve',catalog='C:/test.lrcat',path='C:/source.jpg',photo_id='2',
+                        curve_points=[[0,0],[255,245]],curve_channel=channel,expected_revision='fresh',state_dir=Path(directory))
+                fields=dict(line.split('=',1) for line in next(Path(directory).glob('*.request')).read_text().splitlines())
+                self.assertEqual(fields['action'],'curve-channel')
+                self.assertEqual(fields['curve_channel'],channel)
+        with tempfile.TemporaryDirectory() as directory:
+            for action,channel in [('curve','cyan'),('read','red'),('apply','blue')]:
+                with self.assertRaises(ValueError):
+                    CLIENT.send_command(action,catalog='C:/test.lrcat',path='C:/source.jpg',photo_id='2',
+                        curve_channel=channel,state_dir=Path(directory))
+            self.assertEqual(list(Path(directory).iterdir()),[])
 
     def test_native_receipt_correlates_and_encodes_paths(self):
         with tempfile.TemporaryDirectory() as directory:

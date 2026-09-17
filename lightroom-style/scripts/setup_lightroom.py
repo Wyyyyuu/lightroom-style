@@ -9,7 +9,7 @@ import uuid
 
 PLUGIN_NAME = 'PhotoStyleBridge.lrplugin'
 PLUGIN_FILES = ('Bridge.lua', 'Commands.lua', 'Diagnostics.lua', 'Info.lua',
-                'Init.lua', 'Json.lua', 'PluginInfoProvider.lua', 'Shutdown.lua')
+                'Init.lua', 'Json.lua', 'Luminance.lua', 'LuminanceSeed.lua', 'Masks.lua', 'PluginInfoProvider.lua', 'Shutdown.lua')
 
 
 def install_plugin(source, destination):

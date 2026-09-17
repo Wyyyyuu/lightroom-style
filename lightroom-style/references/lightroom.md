@@ -50,3 +50,5 @@ The plugin manager's **运行只读连接检查** (Run read-only connection chec
 Classic 13.0.2 has historical native JPEG import/copy/apply/readback/export verification. Each real task still needs its own parameter receipts and rendered inspection. RAW Kelvin white balance, other versions, the cloud product, and bridge-unsupported controls require separate acceptance.
 
 Official reference: [Adobe Lightroom Classic SDK](https://developer.adobe.com/lightroom-classic/). Installed controls and current tool results determine what can actually be executed.
+
+For local softness, use [native masks](masks.md): command module 0.3.0, luminance ranges with explicit feather handles (Classic 13.0.2), subject/sky/background creation, and adjustment of an exact existing mask ID. Inspect each native render.

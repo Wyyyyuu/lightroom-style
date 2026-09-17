@@ -68,6 +68,38 @@ class AnalysisTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "No fully opaque"):
             analysis.analyze(self.save("empty.png", rgba))
 
+    def test_tone_conditioned_hues_include_bright_colors(self):
+        pixels = np.array([[[0, 0, 100], [0, 150, 0], [255, 240, 160]]])
+        result = analysis.analyze(self.save("tone-colors.png", pixels))
+        for zone, hue in [("shadows", "blue"), ("midtones", "green"), ("highlights", "yellow")]:
+            measured = result["tonal_zones"][zone]
+            self.assertEqual(measured["sample_count"], 1)
+            self.assertEqual(measured["hue_fractions_of_zone"][hue], 1)
+            self.assertEqual(measured["largest_chromatic_bins"][0]["hue"], hue)
+
+    def test_neutral_base_keeps_small_color_accent_small(self):
+        pixels = np.array([[[128, 128, 128]] * 9 + [[0, 128, 255]]])
+        measured = analysis.analyze(self.save("neutral-base.png", pixels))["tonal_zones"]["midtones"]
+        self.assertAlmostEqual(measured["low_chroma_fraction_of_zone"], 0.9)
+        self.assertEqual(measured["chromatic_sample_count"], 1)
+        self.assertAlmostEqual(measured["largest_chromatic_bins"][0]["fraction_of_zone"], 0.1)
+        self.assertAlmostEqual(sum(measured["hue_fractions_of_zone"].values()) + measured["low_chroma_fraction_of_zone"], 1)
+
+    def test_tonal_red_wrap_and_empty_zone_are_unambiguous(self):
+        pixels = np.array([[[200, 0, 1], [200, 1, 0]]])
+        zones = analysis.analyze(self.save("red-wrap.png", pixels))["tonal_zones"]
+        self.assertEqual(zones["shadows"]["hue_fractions_of_zone"]["red"], 1)
+        self.assertIsNone(zones["highlights"]["hue_fractions_of_zone"])
+        self.assertIsNone(zones["highlights"]["low_chroma_fraction_of_zone"])
+        self.assertEqual(zones["highlights"]["largest_chromatic_bins"], [])
+
+    def test_opposing_hues_stay_separate_in_same_tone_zone(self):
+        pixels = np.array([[[150, 30, 30], [0, 70, 70]]])
+        measured = analysis.analyze(self.save("mixed-shadow.png", pixels))["tonal_zones"]["shadows"]
+        self.assertEqual(measured["sample_count"], 2)
+        self.assertEqual(measured["hue_fractions_of_zone"]["red"], 0.5)
+        self.assertEqual(measured["hue_fractions_of_zone"]["cyan"], 0.5)
+
     def test_icc_conversion_and_invalid_profile(self):
         rgb = np.array([[[64, 128, 192], [90, 50, 170]]])
         profile = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()

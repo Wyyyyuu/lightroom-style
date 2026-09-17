@@ -22,15 +22,23 @@ cli_helpers:
     guide: references/bridge.md
   - id: lightroom
     entrypoint: scripts/lightroom_client.py
-    purpose: Import, read, copy, apply, curve, export, and query request status.
+    purpose: Import, read, copy, apply tone/color/grain, curve, mask-read/create/adjust, export, and query request status.
     guide: references/bridge.md
+  - id: round
+    entrypoint: scripts/lightroom_round.py
+    purpose: Execute planned guarded groups, independently read back, and export once; return compact evidence for visual review.
+    guide: references/rounds.md
   - id: analyze
     entrypoint: scripts/analyze_images.py
-    purpose: Measure explicitly supplied images without modifying pixels.
+    purpose: Read RGB/brightness histograms and tone-conditioned hue distributions from explicit rendered images without modifying pixels or using the desktop.
+    guide: references/analysis.md
+  - id: analyze_tones
+    entrypoint: scripts/analyze_tone_regions.py
+    purpose: Compare manually chosen subject/bright/dark regions without editing pixels; distinguish tonal separation from color saturation.
     guide: references/analysis.md
 optional_capabilities:
   - id: desktop_control
-    purpose: Load or enable the plugin and operate unsupported native controls.
+    purpose: Read native Develop histogram and RGB/Lab samples, load or enable the plugin, and operate unsupported native controls.
     requirement: A host-provided tool with verified readable native Lightroom UI.
     binding: Discover the actual tool name; no universal desktop tool is registered here.
-    fallback: Ask for the specific required UI action, then verify the fresh SDK response.
+    fallback: Distinguish unavailable control from app permission denial; follow bridge.md startup recovery before requesting manual action.

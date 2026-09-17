@@ -14,5 +14,5 @@ return {
     LrExportMenuItems = {
         { title = 'Lightroom Style: Refresh diagnostics', file = 'Diagnostics.lua' },
     },
-    VERSION = { major = 0, minor = 2, revision = 2, build = 0 },
+    VERSION = { major = 0, minor = 3, revision = 1, build = 0 },
 }

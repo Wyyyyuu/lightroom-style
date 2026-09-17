@@ -160,11 +160,27 @@ def analyze(path: Path, max_edge: int = 1400) -> dict:
         count = int(mask.sum())
         low_chroma = mask & (lab_chroma <= 12)
         low_count = int(low_chroma.sum())
+        # Count joint tone-and-hue membership; separate RGB histograms cannot do this.
+        # Center the red bin on 0 degrees so 359/1-degree reds remain together.
+        names = ("red", "orange", "yellow", "yellow_green", "green", "green_cyan",
+                 "cyan", "cyan_blue", "blue", "violet", "magenta", "magenta_red")
+        chromatic = mask & (lab_chroma > 12)
+        indices = np.floor(((hue[chromatic] + 15) % 360) / 30).astype(int)
+        counts = np.bincount(indices, minlength=12)
+        fractions = {label: float(n / count) for label, n in zip(names, counts)} if count else None
+        largest = sorted(range(12), key=lambda i: -int(counts[i]))[:2]
         tonal_zones[name] = {
             "fraction": float(mask.mean()), "sample_count": count,
             "median_lab": np.median(lab[mask], axis=0).tolist() if count else None,
             "low_chroma_count": low_count,
+            "low_chroma_fraction_of_zone": float(low_count / count) if count else None,
             "low_chroma_median_ab": np.median(lab[low_chroma, 1:], axis=0).tolist() if low_count >= 32 else None,
+            "chromatic_sample_count": int(counts.sum()),
+            "hue_fractions_of_zone": fractions,
+            "largest_chromatic_bins": [
+                {"hue": names[i], "fraction_of_zone": fractions[names[i]]}
+                for i in largest if counts[i] > 0
+            ],
         }
     q = quantiles(luma)
     return {
@@ -252,6 +268,7 @@ def main(argv: list[str] | None = None) -> int:
             "zones": "Encoded luma <0.25 shadows, 0.25..0.75 midtones, >0.75 highlights; fixed ranges, not subject masks",
             "low_chroma": "Lab C* <=12 and >=32 pixels; candidate low-chroma pixels, not recognized neutral objects",
             "hue": "HSV 12 circular 30-degree bins, only S>=0.15 and V in [0.08,0.98]; no arithmetic mean hue",
+            "tonal_hue": "Joint encoded-luma zone and HSV hue membership for Lab C*>12; 30-degree bins centered at 0,30,...330. Fractions use ALL samples in the zone as denominator; they sum with low_chroma_fraction_of_zone to 1. Largest chromatic bins need not dominate a mostly neutral zone; these are sampled color families, not semantic materials, light-source estimates, or automatic warm/cool labels.",
             "endpoint_counts": "Rendered channel endpoints at <=1/255 or >=254/255, not proof of capture clipping",
         },
         "references": results, "duplicate_references_ignored": duplicates,
